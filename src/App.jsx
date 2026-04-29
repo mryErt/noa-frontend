@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react'; // useEffect ekledik
 import axios from 'axios';
 
 export default function App() {
@@ -14,13 +14,15 @@ export default function App() {
   const [duzenlenenId, setDuzenlenenId] = useState(null);
   const [duzenlenenVeri, setDuzenlenenVeri] = useState({ cins: '', miktar: '', tutar: '' });
   
-  // SOL LİSTE GİZLEME STATE'İ
   const [listeAcik, setListeAcik] = useState(true);
 
-  // --- VERİTABANINA KAYDETME ---
+  // --- API URL'İ (TEK YERDEN YÖNETİM) ---
+  const API_BASE_URL = 'https://noa-backend-ax4l.onrender.com/api';
+
   const verileriKaydet = async (guncelListe) => {
+    if (!user) return; // Kullanıcı yoksa kaydetmeye çalışma
     try {
-      await axios.post('https://noa-backend-ax4l.onrender.com/api/update-data', {
+      await axios.post(`${API_BASE_URL}/update-data`, {
         username: user.username,
         firmalar: guncelListe
       });
@@ -30,18 +32,21 @@ export default function App() {
   };
 
   const handleAuth = async () => {
-    const url = isLogin ? 'https://noa-backend-ax4l.onrender.com/api/login' : 'https://noa-backend-ax4l.onrender.com/api/register';
+    const url = isLogin ? `${API_BASE_URL}/login` : `${API_BASE_URL}/register`;
     try {
       const res = await axios.post(url, authData);
       if (isLogin) {
-        setUser(res.data.user);
-        setFirmalar(res.data.user.firmalar || []);
+        // Gelen veriyi güvenli bir şekilde state'e aktar
+        const userData = res.data.user;
+        setUser(userData);
+        setFirmalar(userData.firmalar || []);
       } else {
         alert("Kayıt başarılı! Giriş yapabilirsiniz.");
         setIsLogin(true);
       }
     } catch (err) {
-      alert(err.response?.data?.error || "Bağlantı hatası!");
+      console.error("Bağlantı hatası detayı:", err);
+      alert(err.response?.data?.error || "Sunucuya ulaşılamıyor. Lütfen Render sayfasını yenileyip 30 saniye bekleyin.");
     }
   };
 
@@ -105,7 +110,7 @@ export default function App() {
         <div style={authBox}>
           <h2 style={{color: '#1a3353', marginBottom: '20px'}}>{isLogin ? 'Giriş Yap' : 'Üye Ol'}</h2>
           <input style={inp} placeholder="Kullanıcı Adı" onChange={e => setAuthData({...authData, username: e.target.value})} />
-          <input style={inp} type="password" placeholder="Şifre" onChange={e => setAuthData({...authData, password: e.target.value})} />
+          <input style={inp} type="password" placeholder="Şifre" onKeyPress={(e) => e.key === 'Enter' && handleAuth()} onChange={e => setAuthData({...authData, password: e.target.value})} />
           <button style={btn} onClick={handleAuth}>{isLogin ? 'Giriş Yap' : 'Kayıt Ol'}</button>
           <p style={{cursor: 'pointer', fontSize: '14px', marginTop: '15px'}} onClick={() => setIsLogin(!isLogin)}>
             {isLogin ? 'Hesabınız yok mu? Üye olun' : 'Zaten üyeyim? Giriş yapın'}
@@ -122,7 +127,6 @@ export default function App() {
         <div style={{fontSize: '14px'}}>Hoş geldin, <b>{user.username}</b> | <span style={{cursor: 'pointer', color: 'red'}} onClick={() => window.location.reload()}>Güvenli Çıkış</span></div>
       </div>
       
-      {/* ANA ÖZET KARTLARI */}
       <div style={{ display: 'flex', gap: '15px', marginBottom: '25px' }}>
         <div style={kart('#3498db')}>Genel Maliyet: {genelMaliyet.toLocaleString()} TL</div>
         <div style={kart('#2ecc71')}>Toplam Ödenen: {genelOdenen.toLocaleString()} TL</div>
@@ -130,13 +134,8 @@ export default function App() {
       </div>
 
       <div style={{ display: 'flex', gap: '20px' }}>
-        
-        {/* SOL: FİRMALAR LİSTESİ (Gizlenebilir) */}
         <div style={{ width: '320px', background: 'white', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)', alignSelf: 'flex-start' }}>
-          <div 
-            onClick={() => setListeAcik(!listeAcik)} 
-            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', marginBottom: listeAcik ? '15px' : '0' }}
-          >
+          <div onClick={() => setListeAcik(!listeAcik)} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', marginBottom: listeAcik ? '15px' : '0' }}>
             <h4 style={{margin: 0}}>Cari Firmalar</h4>
             <span style={{ fontSize: '18px' }}>{listeAcik ? '▼' : '▲'}</span>
           </div>
@@ -157,7 +156,7 @@ export default function App() {
                       display: 'flex', justifyContent: 'space-between', border: '1px solid #ddd'
                     }}>
                       <strong>{f.ad}</strong>
-                      <span style={{fontSize: '11px', opacity: 0.8}}>Ödenen: {odenen.toLocaleString()}</span>
+                      <span style={{fontSize: '11px', opacity: 0.8}}>{odenen.toLocaleString()} TL</span>
                     </div>
                   );
                 })}
@@ -166,7 +165,6 @@ export default function App() {
           )}
         </div>
 
-        {/* SAĞ: DETAYLAR */}
         <div style={{ flex: 1, background: 'white', padding: '25px', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)' }}>
           {seciliFirma ? (
             <>
@@ -179,18 +177,11 @@ export default function App() {
                 </div>
               </div>
 
-              {/* NOT ALANI */}
               <div style={{marginBottom: '20px'}}>
                 <label style={{fontSize: '13px', color: '#666', fontWeight: 'bold'}}>Firma Notları / Açıklama:</label>
-                <textarea 
-                  value={seciliFirma.not} 
-                  onChange={(e) => notGuncelle(e.target.value)}
-                  style={{...inp, height: '80px', marginTop: '5px', resize: 'vertical', border: '1px solid #3498db'}}
-                  placeholder="Firmaya dair özel notlarınızı buraya girebilirsiniz..."
-                />
+                <textarea value={seciliFirma.not} onChange={(e) => notGuncelle(e.target.value)} style={{...inp, height: '80px', marginTop: '5px', resize: 'vertical', border: '1px solid #3498db'}} placeholder="Firmaya dair özel notlarınızı buraya girebilirsiniz..." />
               </div>
 
-              {/* HAREKET GİRİŞİ */}
               <div style={{ background: '#f8f9fa', padding: '15px', borderRadius: '10px', marginBottom: '20px' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: '10px' }}>
                   <input placeholder="Malzeme/Hizmet" value={yeniKalem.cins} onChange={e => setYeniKalem({ ...yeniKalem, cins: e.target.value })} style={inp} />
@@ -200,7 +191,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* ÖDEME GİRİŞİ */}
               <div style={{display: 'flex', gap: '10px', marginBottom: '20px', padding: '15px', backgroundColor: '#eafaf1', borderRadius: '10px', alignItems: 'center'}}>
                   <strong style={{fontSize: '14px', color: '#27ae60'}}>Nakit Ödeme:</strong>
                   <input placeholder="Ödeme Miktarı..." type="number" value={odemeTutari} onChange={e => setOdemeTutari(e.target.value)} style={inp} />
@@ -208,7 +198,6 @@ export default function App() {
               </div>
 
               <div style={{display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '25px'}}>
-                {/* TABLO */}
                 <div>
                   <h5 style={{margin: '0 0 10px 0'}}>Harcama Kalemleri</h5>
                   <table width="100%" style={{borderCollapse: 'collapse', fontSize: '14px'}}>
@@ -237,7 +226,6 @@ export default function App() {
                   </table>
                 </div>
 
-                {/* ÖDEME LİSTESİ */}
                 <div style={{borderLeft: '2px solid #eee', paddingLeft: '20px'}}>
                   <h5 style={{margin: '0 0 10px 0'}}>Tahsilat/Ödeme Geçmişi</h5>
                   {seciliFirma.odemeGecmisi.map(o => (
@@ -256,7 +244,6 @@ export default function App() {
   );
 }
 
-// STİLLER
 const authContainer = { display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: '#f0f2f5' };
 const authBox = { background: 'white', padding: '40px', borderRadius: '15px', boxShadow: '0 10px 30px rgba(0,0,0,0.1)', textAlign: 'center', width: '350px' };
 const kart = (renk) => ({ flex: 1, background: 'white', padding: '20px', borderRadius: '12px', fontWeight: 'bold', boxShadow: '0 4px 6px rgba(0,0,0,0.05)', borderBottom: `5px solid ${renk}` });
