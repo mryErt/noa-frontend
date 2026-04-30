@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 export default function App() {
   const [user, setUser] = useState(null); 
@@ -13,7 +15,6 @@ export default function App() {
   const [odemeTutari, setOdemeTutari] = useState('');
   const [odemeAciklaması, setOdemeAciklaması] = useState('');
 
-  // --- YENİ: Arama State'i ---
   const [searchTerm, setSearchTerm] = useState('');
 
   const [duzenlenenId, setDuzenlenenId] = useState(null);
@@ -99,6 +100,35 @@ export default function App() {
     const liste = firmalar.map(f => f.id === seciliFirmaId ? { ...f, not: yeniNot } : f);
     setFirmalar(liste);
     verileriKaydet(liste);
+  };
+
+  // --- PDF ÜRETME FONKSİYONU ---
+  const pdfUret = () => {
+    if (!seciliFirma) return;
+    const doc = new jsPDF();
+    doc.setFontSize(18);
+    doc.text(`${seciliFirma.ad} - HARCAMA VE ODEME RAPORU`, 14, 22);
+    doc.setFontSize(11);
+    doc.text(`Tarih: ${new Date().toLocaleDateString()}`, 14, 30);
+    doc.text(`Net Borc: ${fBorc.toLocaleString()} TL`, 14, 38);
+    const harcamaVerileri = seciliFirma.kalemler.map(k => [k.cins, k.miktar, `${k.tutar.toLocaleString()} TL`]);
+    doc.autoTable({
+      startY: 45,
+      head: [['Hizmet/Malzeme', 'Miktar', 'Tutar']],
+      body: harcamaVerileri,
+      theme: 'grid',
+      headStyles: { fillColor: [26, 51, 83] }
+    });
+    const odemeVerileri = seciliFirma.odemeGecmisi.map(o => [o.tarih, o.aciklama || '-', `${o.miktar.toLocaleString()} TL`]);
+    doc.text("Odeme Gecmisi", 14, doc.lastAutoTable.finalY + 10);
+    doc.autoTable({
+      startY: doc.lastAutoTable.finalY + 15,
+      head: [['Tarih', 'Aciklama', 'Miktar']],
+      body: odemeVerileri,
+      theme: 'striped',
+      headStyles: { fillColor: [46, 204, 113] }
+    });
+    doc.save(`${seciliFirma.ad}_rapor.pdf`);
   };
 
   const kalemEkle = () => {
@@ -187,7 +217,6 @@ export default function App() {
 
           {listeAcik && (
             <>
-              {/* --- YENİ: ARAMA INPUTU --- */}
               <div style={{marginBottom: '15px'}}>
                 <input 
                   value={searchTerm} 
@@ -196,14 +225,11 @@ export default function App() {
                   style={{...inp, backgroundColor: '#fdfdfd', border: '1px solid #3498db55'}} 
                 />
               </div>
-
               <div style={{display: 'flex', gap: '5px', marginBottom: '15px'}}>
                 <input value={yeniFirmaAdi} onChange={e => setYeniFirmaAdi(e.target.value)} placeholder="Yeni Firma Ekle..." style={inp} />
                 <button onClick={firmaEkle} style={btn}>+</button>
               </div>
-
               <div style={{maxHeight: '500px', overflowY: 'auto'}}>
-                {/* --- FİLTRELEME İŞLEMİ BURADA YAPILIYOR --- */}
                 {firmalar
                   .filter(f => f.ad.toLowerCase().includes(searchTerm.toLowerCase()))
                   .map(f => {
@@ -231,9 +257,6 @@ export default function App() {
                       </div>
                     );
                   })}
-                {firmalar.filter(f => f.ad.toLowerCase().includes(searchTerm.toLowerCase())).length === 0 && (
-                  <div style={{fontSize: '12px', color: '#999', textAlign: 'center', marginTop: '10px'}}>Firma bulunamadı.</div>
-                )}
               </div>
             </>
           )}
@@ -242,10 +265,21 @@ export default function App() {
         <div style={{ flex: 1, background: 'white', padding: '25px', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)' }}>
           {seciliFirma ? (
             <>
-              <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
+              {/* --- 4. ADIM: PDF BUTONUNUN EKLENDİĞİ YER --- */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%', marginBottom: '20px' }}>
                 <div>
-                  <h3 style={{margin: 0}}>{seciliFirma.ad} Analizi</h3>
-                  <button onClick={() => firmaSil(seciliFirma.id)} style={{background: 'none', border: 'none', color: '#e74c3c', fontSize: '11px', cursor: 'pointer', padding: 0, marginTop: '5px', textDecoration: 'underline'}}>⚠️ Bu Firmayı Tamamen Sil</button>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                    <h3 style={{ margin: 0 }}>{seciliFirma.ad} Analizi</h3>
+                    <button 
+                      onClick={pdfUret} 
+                      style={{ ...btn, background: '#e67e22', padding: '6px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '5px' }}
+                    >
+                      📄 PDF Raporu İndir
+                    </button>
+                  </div>
+                  <button onClick={() => firmaSil(seciliFirma.id)} style={{ background: 'none', border: 'none', color: '#e74c3c', fontSize: '11px', cursor: 'pointer', padding: 0, marginTop: '5px', textDecoration: 'underline' }}>
+                    ⚠️ Bu Firmayı Tamamen Sil
+                  </button>
                 </div>
                 <div style={{display: 'flex', gap: '10px'}}>
                   <div style={kucukOzet('#3498db')}>Maliyet: {fMaliyet.toLocaleString()} TL</div>
@@ -337,7 +371,6 @@ export default function App() {
   );
 }
 
-// Stiller aynı kalıyor...
 const authContainer = { display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: '#f0f2f5' };
 const authBox = { background: 'white', padding: '40px', borderRadius: '15px', boxShadow: '0 10px 30px rgba(0,0,0,0.1)', textAlign: 'center', width: '350px' };
 const kart = (renk) => ({ flex: 1, background: 'white', padding: '20px', borderRadius: '12px', fontWeight: 'bold', boxShadow: '0 4px 6px rgba(0,0,0,0.05)', borderBottom: `5px solid ${renk}` });
