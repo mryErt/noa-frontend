@@ -11,14 +11,17 @@ export default function App() {
   const [yeniFirmaAdi, setYeniFirmaAdi] = useState('');
   const [yeniKalem, setYeniKalem] = useState({ cins: '', miktar: '', tutar: '' });
   const [odemeTutari, setOdemeTutari] = useState('');
-  
-  // Düzenleme State'leri (Harcama Kalemleri İçin)
+  const [odemeAciklaması, setOdemeAciklaması] = useState('');
+
   const [duzenlenenId, setDuzenlenenId] = useState(null);
   const [duzenlenenVeri, setDuzenlenenVeri] = useState({ cins: '', miktar: '', tutar: '' });
   
-  // --- YENİ: Ödeme Düzenleme State'leri ---
   const [duzenlenenOdemeId, setDuzenlenenOdemeId] = useState(null);
-  const [duzenlenenOdemeVeri, setDuzenlenenOdemeVeri] = useState({ miktar: '', tarih: '' });
+  const [duzenlenenOdemeVeri, setDuzenlenenOdemeVeri] = useState({ miktar: '', tarih: '', aciklama: '' });
+
+  // --- YENİ: Firma Adı Düzenleme State'leri ---
+  const [duzenlenenFirmaId, setDuzenlenenFirmaId] = useState(null);
+  const [duzenlenenFirmaAdi, setDuzenlenenFirmaAdi] = useState('');
   
   const [listeAcik, setListeAcik] = useState(true);
 
@@ -73,6 +76,25 @@ export default function App() {
     setYeniFirmaAdi('');
   };
 
+  // --- YENİ: Firma Adı Güncelleme ---
+  const firmaAdiniGuncelle = (e) => {
+    e.stopPropagation();
+    const liste = firmalar.map(f => f.id === duzenlenenFirmaId ? { ...f, ad: duzenlenenFirmaAdi } : f);
+    setFirmalar(liste);
+    verileriKaydet(liste);
+    setDuzenlenenFirmaId(null);
+  };
+
+  // --- YENİ: Firma Silme (Onay Mekanizmalı) ---
+  const firmaSil = (id) => {
+    if (window.confirm("Bu firmayı ve tüm harcama/ödeme geçmişini silmek istediğinize emin misiniz? Bu işlem geri alınamaz.")) {
+      const liste = firmalar.filter(f => f.id !== id);
+      setFirmalar(liste);
+      verileriKaydet(liste);
+      setSeciliFirmaId(null);
+    }
+  };
+
   const notGuncelle = (yeniNot) => {
     const liste = firmalar.map(f => f.id === seciliFirmaId ? { ...f, not: yeniNot } : f);
     setFirmalar(liste);
@@ -91,11 +113,17 @@ export default function App() {
   const odemeYap = () => {
     if (!odemeTutari || Number(odemeTutari) <= 0) return;
     const liste = firmalar.map(f => f.id === seciliFirmaId ? { 
-      ...f, odemeGecmisi: [...f.odemeGecmisi, { id: Date.now(), miktar: Number(odemeTutari), tarih: new Date().toLocaleDateString() }] 
+      ...f, odemeGecmisi: [...f.odemeGecmisi, { 
+        id: Date.now(), 
+        miktar: Number(odemeTutari), 
+        tarih: new Date().toLocaleDateString(),
+        aciklama: odemeAciklaması
+      }] 
     } : f);
     setFirmalar(liste);
     verileriKaydet(liste);
     setOdemeTutari('');
+    setOdemeAciklaması('');
   };
 
   const duzenleKaydet = () => {
@@ -107,10 +135,14 @@ export default function App() {
     setDuzenlenenId(null);
   };
 
-  // --- YENİ: Ödeme Düzenleme Kaydetme Fonksiyonu ---
   const odemeDuzenleKaydet = () => {
     const liste = firmalar.map(f => f.id === seciliFirmaId ? {
-      ...f, odemeGecmisi: f.odemeGecmisi.map(o => o.id === duzenlenenOdemeId ? { ...o, miktar: Number(duzenlenenOdemeVeri.miktar), tarih: duzenlenenOdemeVeri.tarih } : o)
+      ...f, odemeGecmisi: f.odemeGecmisi.map(o => o.id === duzenlenenOdemeId ? { 
+        ...o, 
+        miktar: Number(duzenlenenOdemeVeri.miktar), 
+        tarih: duzenlenenOdemeVeri.tarih,
+        aciklama: duzenlenenOdemeVeri.aciklama
+      } : o)
     } : f);
     setFirmalar(liste);
     verileriKaydet(liste);
@@ -166,10 +198,22 @@ export default function App() {
                     <div key={f.id} onClick={() => setSeciliFirmaId(f.id)} style={{ 
                       padding: '12px', cursor: 'pointer', background: seciliFirmaId === f.id ? '#1a3353' : '#f8f9fa', 
                       color: seciliFirmaId === f.id ? 'white' : 'black', margin: '8px 0', borderRadius: '8px',
-                      display: 'flex', justifyContent: 'space-between', border: '1px solid #ddd'
+                      border: '1px solid #ddd'
                     }}>
-                      <strong>{f.ad}</strong>
-                      <span style={{fontSize: '11px', opacity: 0.8}}>{odenen.toLocaleString()} TL</span>
+                      {duzenlenenFirmaId === f.id ? (
+                        <div style={{display: 'flex', gap: '5px'}}>
+                          <input style={{...inp, padding: '4px'}} value={duzenlenenFirmaAdi} onChange={e => setDuzenlenenFirmaAdi(e.target.value)} onClick={e => e.stopPropagation()} />
+                          <button style={{...btn, padding: '4px 8px'}} onClick={firmaAdiniGuncelle}>OK</button>
+                        </div>
+                      ) : (
+                        <div style={{display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center'}}>
+                          <div>
+                            <strong>{f.ad}</strong><br/>
+                            <span style={{fontSize: '11px', opacity: 0.8}}>{odenen.toLocaleString()} TL</span>
+                          </div>
+                          <span onClick={(e) => { e.stopPropagation(); setDuzenlenenFirmaId(f.id); setDuzenlenenFirmaAdi(f.ad); }} style={{fontSize: '14px', opacity: 0.6}}>✏️</span>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -182,7 +226,10 @@ export default function App() {
           {seciliFirma ? (
             <>
               <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px'}}>
-                <h3 style={{margin: 0}}>{seciliFirma.ad} Detaylı Analiz</h3>
+                <div>
+                  <h3 style={{margin: 0}}>{seciliFirma.ad} Analizi</h3>
+                  <button onClick={() => firmaSil(seciliFirma.id)} style={{background: 'none', border: 'none', color: '#e74c3c', fontSize: '11px', cursor: 'pointer', padding: 0, marginTop: '5px', textDecoration: 'underline'}}>⚠️ Bu Firmayı Tamamen Sil</button>
+                </div>
                 <div style={{display: 'flex', gap: '10px'}}>
                   <div style={kucukOzet('#3498db')}>Maliyet: {fMaliyet.toLocaleString()} TL</div>
                   <div style={kucukOzet('#2ecc71')}>Ödenen: {fOdenen.toLocaleString()} TL</div>
@@ -205,9 +252,10 @@ export default function App() {
               </div>
 
               <div style={{display: 'flex', gap: '10px', marginBottom: '20px', padding: '15px', backgroundColor: '#eafaf1', borderRadius: '10px', alignItems: 'center'}}>
-                  <strong style={{fontSize: '14px', color: '#27ae60'}}>Nakit Ödeme:</strong>
-                  <input placeholder="Ödeme Miktarı..." type="number" value={odemeTutari} onChange={e => setOdemeTutari(e.target.value)} style={inp} />
-                  <button onClick={odemeYap} style={{ ...btn, background: '#2ecc71', width: '200px' }}>Ödemeyi Tamamla</button>
+                  <strong style={{fontSize: '14px', color: '#27ae60'}}>Nakit/Çek Ödeme:</strong>
+                  <input placeholder="Miktar..." type="number" value={odemeTutari} onChange={e => setOdemeTutari(e.target.value)} style={{...inp, flex: 1}} />
+                  <input placeholder="Açıklama (Çek no vb.)..." value={odemeAciklaması} onChange={e => setOdemeAciklaması(e.target.value)} style={{...inp, flex: 2}} />
+                  <button onClick={odemeYap} style={{ ...btn, background: '#2ecc71', width: '180px' }}>Öde</button>
               </div>
 
               <div style={{display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '25px'}}>
@@ -247,15 +295,17 @@ export default function App() {
                         <div style={{display: 'flex', flexDirection: 'column', gap: '5px'}}>
                           <input style={{...inp, padding: '5px'}} type="date" value={duzenlenenOdemeVeri.tarih} onChange={e => setDuzenlenenOdemeVeri({...duzenlenenOdemeVeri, tarih: e.target.value})} />
                           <input style={{...inp, padding: '5px'}} type="number" value={duzenlenenOdemeVeri.miktar} onChange={e => setDuzenlenenOdemeVeri({...duzenlenenOdemeVeri, miktar: e.target.value})} />
+                          <input style={{...inp, padding: '5px'}} placeholder="Açıklama..." value={duzenlenenOdemeVeri.aciklama} onChange={e => setDuzenlenenOdemeVeri({...duzenlenenOdemeVeri, aciklama: e.target.value})} />
                           <button onClick={odemeDuzenleKaydet} style={{...btn, padding: '5px', fontSize: '10px'}}>Kaydet</button>
                         </div>
                       ) : (
                         <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
                           <div>
-                            <span style={{color: '#666'}}>{o.tarih}</span><br/>
+                            <span style={{color: '#666'}}>{o.tarih}</span> {o.aciklama && <span style={{fontSize: '10px', background: '#d1f2eb', padding: '2px 5px', borderRadius: '4px', marginLeft: '5px'}}>{o.aciklama}</span>}
+                            <br/>
                             <strong>{o.miktar.toLocaleString()} TL</strong>
                           </div>
-                          <button onClick={() => { setDuzenlenenOdemeId(o.id); setDuzenlenenOdemeVeri({ miktar: o.miktar, tarih: o.tarih }); }} style={{background: 'none', border: 'none', color: '#3498db', cursor: 'pointer', fontSize: '11px', textDecoration: 'underline'}}>Düzenle</button>
+                          <button onClick={() => { setDuzenlenenOdemeId(o.id); setDuzenlenenOdemeVeri({ miktar: o.miktar, tarih: o.tarih, aciklama: o.aciklama || '' }); }} style={{background: 'none', border: 'none', color: '#3498db', cursor: 'pointer', fontSize: '11px', textDecoration: 'underline'}}>Düzenle</button>
                         </div>
                       )}
                     </div>
@@ -271,7 +321,6 @@ export default function App() {
   );
 }
 
-// Stil bileşenleri aynı kaldı...
 const authContainer = { display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: '#f0f2f5' };
 const authBox = { background: 'white', padding: '40px', borderRadius: '15px', boxShadow: '0 10px 30px rgba(0,0,0,0.1)', textAlign: 'center', width: '350px' };
 const kart = (renk) => ({ flex: 1, background: 'white', padding: '20px', borderRadius: '12px', fontWeight: 'bold', boxShadow: '0 4px 6px rgba(0,0,0,0.05)', borderBottom: `5px solid ${renk}` });
