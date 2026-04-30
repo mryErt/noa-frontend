@@ -8,10 +8,16 @@ export default function App() {
   const [isLogin, setIsLogin] = useState(true);
   const [authData, setAuthData] = useState({ username: '', password: '' });
 
+  // --- PROJE STATE'LERİ ---
   const [projeler, setProjeler] = useState([]); 
   const [seciliProjeId, setSeciliProjeId] = useState(null); 
   const [yeniProjeAdi, setYeniProjeAdi] = useState('');
 
+  // --- ŞİFRE DEĞİŞTİRME STATE'LERİ ---
+  const [passData, setPassData] = useState({ oldP: '', newP: '' });
+  const [showPassChange, setShowPassChange] = useState(false);
+
+  // --- FİRMA VE DİĞER STATE'LER ---
   const [seciliFirmaId, setSeciliFirmaId] = useState(null);
   const [yeniFirmaAdi, setYeniFirmaAdi] = useState('');
   const [yeniKalem, setYeniKalem] = useState({ cins: '', miktar: '', tutar: '' });
@@ -29,6 +35,7 @@ export default function App() {
 
   const API_BASE_URL = 'https://noa-backend-ax4l.onrender.com/api';
 
+  // --- VERİ KAYDETME ---
   const verileriKaydet = async (guncelProjeler) => {
     if (!user) return;
     try {
@@ -41,6 +48,7 @@ export default function App() {
     }
   };
 
+  // --- AUTH İŞLEMLERİ ---
   const handleAuth = async () => {
     const url = isLogin ? `${API_BASE_URL}/login` : `${API_BASE_URL}/register`;
     try {
@@ -58,6 +66,23 @@ export default function App() {
     }
   };
 
+  // --- ŞİFRE DEĞİŞTİRME FONKSİYONU ---
+  const sifreDegistir = async () => {
+    try {
+      const res = await axios.post(`${API_BASE_URL}/change-password`, {
+        username: user.username,
+        oldPassword: passData.oldP,
+        newPassword: passData.newP
+      });
+      alert(res.data.message);
+      setShowPassChange(false);
+      setPassData({ oldP: '', newP: '' });
+    } catch (err) {
+      alert(err.response?.data?.error || "Hata oluştu");
+    }
+  };
+
+  // --- MANTIKSAL BAĞLANTILAR ---
   const suankiProje = projeler.find(p => p.id === seciliProjeId);
   const firmalar = suankiProje ? suankiProje.firmalar : [];
   const seciliFirma = firmalar.find(f => f.id === seciliFirmaId);
@@ -70,6 +95,7 @@ export default function App() {
   const genelOdenen = firmalar.reduce((t, f) => t + (f.odemeGecmisi?.reduce((ot, o) => ot + Number(o.miktar || 0), 0) || 0), 0);
   const genelBorc = genelMaliyet - genelOdenen;
 
+  // --- PROJE İŞLEMLERİ ---
   const projeEkle = () => {
     if (!yeniProjeAdi.trim()) return;
     const yeni = { id: Date.now(), ad: yeniProjeAdi, firmalar: [] };
@@ -96,6 +122,7 @@ export default function App() {
     verileriKaydet(guncelProjeler);
   };
 
+  // --- FİRMA İŞLEMLERİ ---
   const firmaEkle = () => {
     if (!yeniFirmaAdi.trim()) return;
     const yeni = { id: Date.now(), ad: yeniFirmaAdi, kalemler: [], odemeGecmisi: [], not: '' };
@@ -140,6 +167,7 @@ export default function App() {
     setOdemeAciklaması('');
   };
 
+  // --- PDF ÜRETME ---
   const pdfUret = () => {
     try {
       if (!seciliFirma) return;
@@ -173,6 +201,7 @@ export default function App() {
     } catch (e) { alert("PDF Hatası!"); }
   };
 
+  // --- GİRİŞ EKRANI ---
   if (!user) {
     return (
       <div style={authContainer}>
@@ -187,7 +216,7 @@ export default function App() {
     );
   }
 
-  // --- PROJE SEÇİM EKRANI (Güvenli Çıkış Eklendi) ---
+  // --- PROJE SEÇİM EKRANI ---
   if (!seciliProjeId) {
     return (
       <div style={{ padding: '40px', backgroundColor: '#f0f2f5', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -206,17 +235,33 @@ export default function App() {
           {projeler.length === 0 && <p style={{textAlign: 'center', color: '#999'}}>Henüz proje eklenmemiş.</p>}
         </div>
         
-        {/* --- YENİ ÇIKIŞ BAĞLANTISI --- */}
+        {/* Güvenli Çıkış */}
         <div 
           onClick={() => window.location.reload()} 
           style={{marginTop: '25px', fontSize: '14px', color: '#e74c3c', cursor: 'pointer', fontWeight: 'bold', textDecoration: 'underline'}}
         >
           🔒 Güvenli Çıkış Yap
         </div>
+
+        {/* Şifre Değiştirme Alanı */}
+        <div style={{ marginTop: '15px' }}>
+            <span onClick={() => setShowPassChange(!showPassChange)} style={{ cursor: 'pointer', fontSize: '13px', color: '#3498db', textDecoration: 'underline' }}>
+                ⚙️ Şifre Değiştir
+            </span>
+        </div>
+
+        {showPassChange && (
+            <div style={{ marginTop: '15px', background: 'white', padding: '15px', borderRadius: '10px', border: '1px solid #ddd', width: '300px' }}>
+                <input type="password" placeholder="Mevcut Şifre" style={{...inp, marginBottom: '8px'}} onChange={e => setPassData({...passData, oldP: e.target.value})} />
+                <input type="password" placeholder="Yeni Şifre" style={{...inp, marginBottom: '12px'}} onChange={e => setPassData({...passData, newP: e.target.value})} />
+                <button onClick={sifreDegistir} style={{...btn, width: '100%', background: '#2980b9'}}>Şifreyi Güncelle</button>
+            </div>
+        )}
       </div>
     );
   }
 
+  // --- ANA DASHBOARD ---
   return (
     <div style={{ fontFamily: 'Segoe UI, sans-serif', padding: '20px', backgroundColor: '#f0f2f5', minHeight: '100vh' }}>
       <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '20px', alignItems: 'center'}}>
@@ -311,6 +356,7 @@ export default function App() {
   );
 }
 
+// STİLLER (Değiştirilmedi)
 const authContainer = { display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: '#f0f2f5' };
 const authBox = { background: 'white', padding: '40px', borderRadius: '15px', boxShadow: '0 10px 30px rgba(0,0,0,0.1)', textAlign: 'center', width: '350px' };
 const kart = (renk) => ({ flex: 1, background: 'white', padding: '20px', borderRadius: '12px', fontWeight: 'bold', boxShadow: '0 4px 6px rgba(0,0,0,0.05)', borderBottom: `5px solid ${renk}` });
