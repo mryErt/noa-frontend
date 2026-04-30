@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 export default function App() {
   const [user, setUser] = useState(null); 
@@ -104,31 +104,65 @@ export default function App() {
 
   // --- PDF ÜRETME FONKSİYONU ---
   const pdfUret = () => {
-    if (!seciliFirma) return;
-    const doc = new jsPDF();
-    doc.setFontSize(18);
-    doc.text(`${seciliFirma.ad} - HARCAMA VE ODEME RAPORU`, 14, 22);
-    doc.setFontSize(11);
-    doc.text(`Tarih: ${new Date().toLocaleDateString()}`, 14, 30);
-    doc.text(`Net Borc: ${fBorc.toLocaleString()} TL`, 14, 38);
-    const harcamaVerileri = seciliFirma.kalemler.map(k => [k.cins, k.miktar, `${k.tutar.toLocaleString()} TL`]);
-    doc.autoTable({
-      startY: 45,
-      head: [['Hizmet/Malzeme', 'Miktar', 'Tutar']],
-      body: harcamaVerileri,
-      theme: 'grid',
-      headStyles: { fillColor: [26, 51, 83] }
-    });
-    const odemeVerileri = seciliFirma.odemeGecmisi.map(o => [o.tarih, o.aciklama || '-', `${o.miktar.toLocaleString()} TL`]);
-    doc.text("Odeme Gecmisi", 14, doc.lastAutoTable.finalY + 10);
-    doc.autoTable({
-      startY: doc.lastAutoTable.finalY + 15,
-      head: [['Tarih', 'Aciklama', 'Miktar']],
-      body: odemeVerileri,
-      theme: 'striped',
-      headStyles: { fillColor: [46, 204, 113] }
-    });
-    doc.save(`${seciliFirma.ad}_rapor.pdf`);
+    try {
+      if (!seciliFirma) return;
+      const doc = new jsPDF();
+
+      // Türkçe karakter temizleme fonksiyonu
+      const trTemizle = (metin) => {
+        if (!metin) return "";
+        return metin.toString()
+          .replace(/ğ/g, 'g').replace(/Ğ/g, 'G')
+          .replace(/ü/g, 'u').replace(/Ü/g, 'U')
+          .replace(/ş/g, 's').replace(/Ş/g, 'S')
+          .replace(/ı/g, 'i').replace(/İ/g, 'I')
+          .replace(/ö/g, 'o').replace(/Ö/g, 'O')
+          .replace(/ç/g, 'c').replace(/Ç/g, 'C');
+      };
+
+      doc.setFontSize(18);
+      doc.text(`${trTemizle(seciliFirma.ad)} - RAPOR`, 14, 22);
+      
+      doc.setFontSize(11);
+      doc.text(`Tarih: ${new Date().toLocaleDateString()}`, 14, 30);
+      doc.text(`Net Borc: ${fBorc.toLocaleString()} TL`, 14, 38);
+
+      const harcamaVerileri = seciliFirma.kalemler.map(k => [
+        trTemizle(k.cins), 
+        trTemizle(k.miktar), 
+        `${k.tutar.toLocaleString()} TL`
+      ]);
+      
+      autoTable(doc, {
+        startY: 45,
+        head: [['Hizmet/Malzeme', 'Miktar', 'Tutar']],
+        body: harcamaVerileri,
+        theme: 'grid',
+        headStyles: { fillColor: [26, 51, 83] }
+      });
+
+      const finalY = doc.lastAutoTable.finalY;
+      doc.text("Odeme Gecmisi", 14, finalY + 10);
+
+      const odemeVerileri = seciliFirma.odemeGecmisi.map(o => [
+        o.tarih, 
+        trTemizle(o.aciklama) || '-', 
+        `${o.miktar.toLocaleString()} TL`
+      ]);
+      
+      autoTable(doc, {
+        startY: finalY + 15,
+        head: [['Tarih', 'Aciklama', 'Miktar']],
+        body: odemeVerileri,
+        theme: 'striped',
+        headStyles: { fillColor: [46, 204, 113] }
+      });
+
+      doc.save(`${trTemizle(seciliFirma.ad)}_rapor.pdf`);
+    } catch (error) {
+      console.error("PDF Hatası:", error);
+      alert("PDF oluşturulurken bir hata oluştu.");
+    }
   };
 
   const kalemEkle = () => {
@@ -265,7 +299,6 @@ export default function App() {
         <div style={{ flex: 1, background: 'white', padding: '25px', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)' }}>
           {seciliFirma ? (
             <>
-              {/* --- 4. ADIM: PDF BUTONUNUN EKLENDİĞİ YER --- */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%', marginBottom: '20px' }}>
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
