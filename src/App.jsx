@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'; // useEffect ekledik
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
 export default function App() {
@@ -11,16 +11,21 @@ export default function App() {
   const [yeniFirmaAdi, setYeniFirmaAdi] = useState('');
   const [yeniKalem, setYeniKalem] = useState({ cins: '', miktar: '', tutar: '' });
   const [odemeTutari, setOdemeTutari] = useState('');
+  
+  // Düzenleme State'leri (Harcama Kalemleri İçin)
   const [duzenlenenId, setDuzenlenenId] = useState(null);
   const [duzenlenenVeri, setDuzenlenenVeri] = useState({ cins: '', miktar: '', tutar: '' });
   
+  // --- YENİ: Ödeme Düzenleme State'leri ---
+  const [duzenlenenOdemeId, setDuzenlenenOdemeId] = useState(null);
+  const [duzenlenenOdemeVeri, setDuzenlenenOdemeVeri] = useState({ miktar: '', tarih: '' });
+  
   const [listeAcik, setListeAcik] = useState(true);
 
-  // --- API URL'İ (TEK YERDEN YÖNETİM) ---
   const API_BASE_URL = 'https://noa-backend-ax4l.onrender.com/api';
 
   const verileriKaydet = async (guncelListe) => {
-    if (!user) return; // Kullanıcı yoksa kaydetmeye çalışma
+    if (!user) return;
     try {
       await axios.post(`${API_BASE_URL}/update-data`, {
         username: user.username,
@@ -36,7 +41,6 @@ export default function App() {
     try {
       const res = await axios.post(url, authData);
       if (isLogin) {
-        // Gelen veriyi güvenli bir şekilde state'e aktar
         const userData = res.data.user;
         setUser(userData);
         setFirmalar(userData.firmalar || []);
@@ -45,8 +49,7 @@ export default function App() {
         setIsLogin(true);
       }
     } catch (err) {
-      console.error("Bağlantı hatası detayı:", err);
-      alert(err.response?.data?.error || "Sunucuya ulaşılamıyor. Lütfen Render sayfasını yenileyip 30 saniye bekleyin.");
+      alert(err.response?.data?.error || "Sunucu hatası!");
     }
   };
 
@@ -102,6 +105,16 @@ export default function App() {
     setFirmalar(liste);
     verileriKaydet(liste);
     setDuzenlenenId(null);
+  };
+
+  // --- YENİ: Ödeme Düzenleme Kaydetme Fonksiyonu ---
+  const odemeDuzenleKaydet = () => {
+    const liste = firmalar.map(f => f.id === seciliFirmaId ? {
+      ...f, odemeGecmisi: f.odemeGecmisi.map(o => o.id === duzenlenenOdemeId ? { ...o, miktar: Number(duzenlenenOdemeVeri.miktar), tarih: duzenlenenOdemeVeri.tarih } : o)
+    } : f);
+    setFirmalar(liste);
+    verileriKaydet(liste);
+    setDuzenlenenOdemeId(null);
   };
 
   if (!user) {
@@ -229,8 +242,22 @@ export default function App() {
                 <div style={{borderLeft: '2px solid #eee', paddingLeft: '20px'}}>
                   <h5 style={{margin: '0 0 10px 0'}}>Tahsilat/Ödeme Geçmişi</h5>
                   {seciliFirma.odemeGecmisi.map(o => (
-                    <div key={o.id} style={{background: '#eafaf1', padding: '8px', borderRadius: '5px', marginBottom: '5px', fontSize: '12px', display: 'flex', justifyContent: 'space-between', borderLeft: '3px solid #2ecc71'}}>
-                      <span>{o.tarih}</span><strong>{o.miktar.toLocaleString()} TL</strong>
+                    <div key={o.id} style={{background: '#eafaf1', padding: '10px', borderRadius: '5px', marginBottom: '8px', fontSize: '12px', borderLeft: '3px solid #2ecc71'}}>
+                      {duzenlenenOdemeId === o.id ? (
+                        <div style={{display: 'flex', flexDirection: 'column', gap: '5px'}}>
+                          <input style={{...inp, padding: '5px'}} type="date" value={duzenlenenOdemeVeri.tarih} onChange={e => setDuzenlenenOdemeVeri({...duzenlenenOdemeVeri, tarih: e.target.value})} />
+                          <input style={{...inp, padding: '5px'}} type="number" value={duzenlenenOdemeVeri.miktar} onChange={e => setDuzenlenenOdemeVeri({...duzenlenenOdemeVeri, miktar: e.target.value})} />
+                          <button onClick={odemeDuzenleKaydet} style={{...btn, padding: '5px', fontSize: '10px'}}>Kaydet</button>
+                        </div>
+                      ) : (
+                        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                          <div>
+                            <span style={{color: '#666'}}>{o.tarih}</span><br/>
+                            <strong>{o.miktar.toLocaleString()} TL</strong>
+                          </div>
+                          <button onClick={() => { setDuzenlenenOdemeId(o.id); setDuzenlenenOdemeVeri({ miktar: o.miktar, tarih: o.tarih }); }} style={{background: 'none', border: 'none', color: '#3498db', cursor: 'pointer', fontSize: '11px', textDecoration: 'underline'}}>Düzenle</button>
+                        </div>
+                      )}
                     </div>
                   ))}
                   {seciliFirma.odemeGecmisi.length === 0 && <small style={{color: '#999'}}>Henüz ödeme kaydı bulunmuyor.</small>}
@@ -244,6 +271,7 @@ export default function App() {
   );
 }
 
+// Stil bileşenleri aynı kaldı...
 const authContainer = { display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: '#f0f2f5' };
 const authBox = { background: 'white', padding: '40px', borderRadius: '15px', boxShadow: '0 10px 30px rgba(0,0,0,0.1)', textAlign: 'center', width: '350px' };
 const kart = (renk) => ({ flex: 1, background: 'white', padding: '20px', borderRadius: '12px', fontWeight: 'bold', boxShadow: '0 4px 6px rgba(0,0,0,0.05)', borderBottom: `5px solid ${renk}` });
