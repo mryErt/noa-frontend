@@ -13,13 +13,15 @@ export default function App() {
   const [odemeTutari, setOdemeTutari] = useState('');
   const [odemeAciklaması, setOdemeAciklaması] = useState('');
 
+  // --- YENİ: Arama State'i ---
+  const [searchTerm, setSearchTerm] = useState('');
+
   const [duzenlenenId, setDuzenlenenId] = useState(null);
   const [duzenlenenVeri, setDuzenlenenVeri] = useState({ cins: '', miktar: '', tutar: '' });
   
   const [duzenlenenOdemeId, setDuzenlenenOdemeId] = useState(null);
   const [duzenlenenOdemeVeri, setDuzenlenenOdemeVeri] = useState({ miktar: '', tarih: '', aciklama: '' });
 
-  // --- YENİ: Firma Adı Düzenleme State'leri ---
   const [duzenlenenFirmaId, setDuzenlenenFirmaId] = useState(null);
   const [duzenlenenFirmaAdi, setDuzenlenenFirmaAdi] = useState('');
   
@@ -76,7 +78,6 @@ export default function App() {
     setYeniFirmaAdi('');
   };
 
-  // --- YENİ: Firma Adı Güncelleme ---
   const firmaAdiniGuncelle = (e) => {
     e.stopPropagation();
     const liste = firmalar.map(f => f.id === duzenlenenFirmaId ? { ...f, ad: duzenlenenFirmaAdi } : f);
@@ -85,9 +86,8 @@ export default function App() {
     setDuzenlenenFirmaId(null);
   };
 
-  // --- YENİ: Firma Silme (Onay Mekanizmalı) ---
   const firmaSil = (id) => {
-    if (window.confirm("Bu firmayı ve tüm harcama/ödeme geçmişini silmek istediğinize emin misiniz? Bu işlem geri alınamaz.")) {
+    if (window.confirm("Bu firmayı ve tüm harcama/ödeme geçmişini silmek istediğinize emin misiniz?")) {
       const liste = firmalar.filter(f => f.id !== id);
       setFirmalar(liste);
       verileriKaydet(liste);
@@ -187,36 +187,53 @@ export default function App() {
 
           {listeAcik && (
             <>
+              {/* --- YENİ: ARAMA INPUTU --- */}
+              <div style={{marginBottom: '15px'}}>
+                <input 
+                  value={searchTerm} 
+                  onChange={e => setSearchTerm(e.target.value)} 
+                  placeholder="🔍 Firma Ara..." 
+                  style={{...inp, backgroundColor: '#fdfdfd', border: '1px solid #3498db55'}} 
+                />
+              </div>
+
               <div style={{display: 'flex', gap: '5px', marginBottom: '15px'}}>
-                <input value={yeniFirmaAdi} onChange={e => setYeniFirmaAdi(e.target.value)} placeholder="Firma Ekle..." style={inp} />
+                <input value={yeniFirmaAdi} onChange={e => setYeniFirmaAdi(e.target.value)} placeholder="Yeni Firma Ekle..." style={inp} />
                 <button onClick={firmaEkle} style={btn}>+</button>
               </div>
+
               <div style={{maxHeight: '500px', overflowY: 'auto'}}>
-                {firmalar.map(f => {
-                  const odenen = f.odemeGecmisi?.reduce((a, b) => a + b.miktar, 0) || 0;
-                  return (
-                    <div key={f.id} onClick={() => setSeciliFirmaId(f.id)} style={{ 
-                      padding: '12px', cursor: 'pointer', background: seciliFirmaId === f.id ? '#1a3353' : '#f8f9fa', 
-                      color: seciliFirmaId === f.id ? 'white' : 'black', margin: '8px 0', borderRadius: '8px',
-                      border: '1px solid #ddd'
-                    }}>
-                      {duzenlenenFirmaId === f.id ? (
-                        <div style={{display: 'flex', gap: '5px'}}>
-                          <input style={{...inp, padding: '4px'}} value={duzenlenenFirmaAdi} onChange={e => setDuzenlenenFirmaAdi(e.target.value)} onClick={e => e.stopPropagation()} />
-                          <button style={{...btn, padding: '4px 8px'}} onClick={firmaAdiniGuncelle}>OK</button>
-                        </div>
-                      ) : (
-                        <div style={{display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center'}}>
-                          <div>
-                            <strong>{f.ad}</strong><br/>
-                            <span style={{fontSize: '11px', opacity: 0.8}}>{odenen.toLocaleString()} TL</span>
+                {/* --- FİLTRELEME İŞLEMİ BURADA YAPILIYOR --- */}
+                {firmalar
+                  .filter(f => f.ad.toLowerCase().includes(searchTerm.toLowerCase()))
+                  .map(f => {
+                    const odenen = f.odemeGecmisi?.reduce((a, b) => a + b.miktar, 0) || 0;
+                    return (
+                      <div key={f.id} onClick={() => setSeciliFirmaId(f.id)} style={{ 
+                        padding: '12px', cursor: 'pointer', background: seciliFirmaId === f.id ? '#1a3353' : '#f8f9fa', 
+                        color: seciliFirmaId === f.id ? 'white' : 'black', margin: '8px 0', borderRadius: '8px',
+                        border: '1px solid #ddd'
+                      }}>
+                        {duzenlenenFirmaId === f.id ? (
+                          <div style={{display: 'flex', gap: '5px'}}>
+                            <input style={{...inp, padding: '4px'}} value={duzenlenenFirmaAdi} onChange={e => setDuzenlenenFirmaAdi(e.target.value)} onClick={e => e.stopPropagation()} />
+                            <button style={{...btn, padding: '4px 8px'}} onClick={firmaAdiniGuncelle}>OK</button>
                           </div>
-                          <span onClick={(e) => { e.stopPropagation(); setDuzenlenenFirmaId(f.id); setDuzenlenenFirmaAdi(f.ad); }} style={{fontSize: '14px', opacity: 0.6}}>✏️</span>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+                        ) : (
+                          <div style={{display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center'}}>
+                            <div>
+                              <strong>{f.ad}</strong><br/>
+                              <span style={{fontSize: '11px', opacity: 0.8}}>{odenen.toLocaleString()} TL</span>
+                            </div>
+                            <span onClick={(e) => { e.stopPropagation(); setDuzenlenenFirmaId(f.id); setDuzenlenenFirmaAdi(f.ad); }} style={{fontSize: '14px', opacity: 0.6}}>✏️</span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                {firmalar.filter(f => f.ad.toLowerCase().includes(searchTerm.toLowerCase())).length === 0 && (
+                  <div style={{fontSize: '12px', color: '#999', textAlign: 'center', marginTop: '10px'}}>Firma bulunamadı.</div>
+                )}
               </div>
             </>
           )}
@@ -254,7 +271,7 @@ export default function App() {
               <div style={{display: 'flex', gap: '10px', marginBottom: '20px', padding: '15px', backgroundColor: '#eafaf1', borderRadius: '10px', alignItems: 'center'}}>
                   <strong style={{fontSize: '14px', color: '#27ae60'}}>Nakit/Çek Ödeme:</strong>
                   <input placeholder="Miktar..." type="number" value={odemeTutari} onChange={e => setOdemeTutari(e.target.value)} style={{...inp, flex: 1}} />
-                  <input placeholder="Açıklama (Çek no vb.)..." value={odemeAciklaması} onChange={e => setOdemeAciklaması(e.target.value)} style={{...inp, flex: 2}} />
+                  <input placeholder="Açıklama..." value={odemeAciklaması} onChange={e => setOdemeAciklaması(e.target.value)} style={{...inp, flex: 2}} />
                   <button onClick={odemeYap} style={{ ...btn, background: '#2ecc71', width: '180px' }}>Öde</button>
               </div>
 
@@ -310,7 +327,6 @@ export default function App() {
                       )}
                     </div>
                   ))}
-                  {seciliFirma.odemeGecmisi.length === 0 && <small style={{color: '#999'}}>Henüz ödeme kaydı bulunmuyor.</small>}
                 </div>
               </div>
             </>
@@ -321,6 +337,7 @@ export default function App() {
   );
 }
 
+// Stiller aynı kalıyor...
 const authContainer = { display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: '#f0f2f5' };
 const authBox = { background: 'white', padding: '40px', borderRadius: '15px', boxShadow: '0 10px 30px rgba(0,0,0,0.1)', textAlign: 'center', width: '350px' };
 const kart = (renk) => ({ flex: 1, background: 'white', padding: '20px', borderRadius: '12px', fontWeight: 'bold', boxShadow: '0 4px 6px rgba(0,0,0,0.05)', borderBottom: `5px solid ${renk}` });
