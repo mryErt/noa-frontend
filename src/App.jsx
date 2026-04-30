@@ -187,6 +187,7 @@ export default function App() {
     );
   }
 
+  // --- PROJE SEÇİM EKRANI (Güvenli Çıkış Eklendi) ---
   if (!seciliProjeId) {
     return (
       <div style={{ padding: '40px', backgroundColor: '#f0f2f5', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -202,6 +203,15 @@ export default function App() {
               <button onClick={(e) => { e.stopPropagation(); projeSil(p.id); }} style={{background: 'none', border: 'none', color: '#e74c3c', cursor: 'pointer', fontSize: '18px'}}>🗑️</button>
             </div>
           ))}
+          {projeler.length === 0 && <p style={{textAlign: 'center', color: '#999'}}>Henüz proje eklenmemiş.</p>}
+        </div>
+        
+        {/* --- YENİ ÇIKIŞ BAĞLANTISI --- */}
+        <div 
+          onClick={() => window.location.reload()} 
+          style={{marginTop: '25px', fontSize: '14px', color: '#e74c3c', cursor: 'pointer', fontWeight: 'bold', textDecoration: 'underline'}}
+        >
+          🔒 Güvenli Çıkış Yap
         </div>
       </div>
     );
