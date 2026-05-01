@@ -55,7 +55,7 @@ export default function App() {
 
   // --- AUTH İŞLEMLERİ (GİRİŞ/KAYIT) ---
   const handleAuth = async (e) => {
-    if(e) e.preventDefault(); // Sayfanın yenilenmesini engelle
+    if(e) e.preventDefault();
     const url = isLogin ? `${API_BASE_URL}/login` : `${API_BASE_URL}/register`;
     try {
       const res = await axios.post(url, authData);
@@ -73,12 +73,7 @@ export default function App() {
   };
 
   // --- OTP (E-POSTA) FONKSİYONLARI ---
-  const otpGonder = async (e) => {
-    if(e) {
-      e.preventDefault();
-      e.stopPropagation(); // Diğer click eventlerini durdur
-    }
-    
+  const otpGonder = async () => {
     if (!authData.username || !resetData.email) {
       return alert("Lütfen yukarıya Kullanıcı Adınızı, aşağıya kayıtlı E-posta adresinizi girin!");
     }
@@ -96,8 +91,7 @@ export default function App() {
     }
   };
 
-  const sifreOnayla = async (e) => {
-    if(e) e.preventDefault();
+  const sifreOnayla = async () => {
     if (!resetData.code || !resetData.newP) return alert("Kod ve yeni şifre gerekli!");
     try {
       const res = await axios.post(`${API_BASE_URL}/verify-otp-and-change`, { 
@@ -143,7 +137,7 @@ export default function App() {
   const genelOdenen = firmalar.reduce((t, f) => t + (f.odemeGecmisi?.reduce((ot, o) => ot + Number(o.miktar || 0), 0) || 0), 0);
   const genelBorc = genelMaliyet - genelOdenen;
 
-  // --- PROJE/FİRMA/KALEM İŞLEMLERİ (SADELEŞTİRİLMEDİ) ---
+  // --- PROJE İŞLEMLERİ ---
   const projeEkle = () => {
     if (!yeniProjeAdi.trim()) return;
     const yeni = { id: Date.now(), ad: yeniProjeAdi, firmalar: [] };
@@ -214,7 +208,6 @@ export default function App() {
     setOdemeAciklaması('');
   };
 
-  // --- PDF ---
   const pdfUret = () => {
     try {
       if (!seciliFirma) return;
@@ -280,7 +273,7 @@ export default function App() {
           {showOTP && (
             <div style={{marginTop: '20px', padding: '15px', border: '1px solid #ddd', borderRadius: '10px', backgroundColor: '#fff9f4'}}>
               {otpStep === 1 ? (
-                <div>
+                <div style={{textAlign: 'left'}}>
                   <h4 style={{margin: '0 0 10px 0', fontSize: '14px'}}>E-posta ile Kod Gönder</h4>
                   <input 
                     style={inp} 
@@ -288,16 +281,17 @@ export default function App() {
                     value={resetData.email}
                     onChange={e => setResetData({...resetData, email: e.target.value})} 
                   />
+                  {/* KRİTİK DEĞİŞİKLİK: type="button" formun dışında bağımsız çalışmasını sağlar */}
                   <button 
-                    type="button" // Kritik: Formu tetiklemez
+                    type="button" 
                     style={{...btn, width: '100%', marginTop: '10px', background: '#e67e22'}} 
-                    onClick={otpGonder}
+                    onClick={() => otpGonder()}
                   >
                     Kod Gönder
                   </button>
                 </div>
               ) : (
-                <div>
+                <div style={{textAlign: 'left'}}>
                   <h4 style={{margin: '0 0 10px 0', fontSize: '14px'}}>Kodu Doğrula</h4>
                   <input 
                     style={inp} 
@@ -315,7 +309,7 @@ export default function App() {
                   <button 
                     type="button"
                     style={{...btn, width: '100%', marginTop: '10px', background: '#2ecc71'}} 
-                    onClick={sifreOnayla}
+                    onClick={() => sifreOnayla()}
                   >
                     Şifreyi Güncelle
                   </button>
@@ -324,7 +318,7 @@ export default function App() {
               <button 
                 type="button"
                 onClick={() => {setShowOTP(false); setOtpStep(1);}} 
-                style={{background: 'none', border: 'none', fontSize: '12px', marginTop: '10px', cursor: 'pointer', color: '#666'}}
+                style={{background: 'none', border: 'none', fontSize: '12px', marginTop: '10px', cursor: 'pointer', color: '#666', width: '100%'}}
               >
                 İptal
               </button>
