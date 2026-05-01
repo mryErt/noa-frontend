@@ -13,9 +13,10 @@ export default function App() {
   const [seciliProjeId, setSeciliProjeId] = useState(null); 
   const [yeniProjeAdi, setYeniProjeAdi] = useState('');
 
-  // --- ŞİFRE DEĞİŞTİRME STATE'LERİ ---
-  const [passData, setPassData] = useState({ oldP: '', newP: '' });
-  const [showPassChange, setShowPassChange] = useState(false);
+  // --- SMS / OTP ŞİFRE SIFIRLAMA STATE'LERİ ---
+  const [showOTP, setShowOTP] = useState(false);
+  const [otpStep, setOtpStep] = useState(1); // 1: Tel gir, 2: Kod ve Yeni Şifre gir
+  const [resetData, setResetData] = useState({ phone: '', code: '', newP: '' });
 
   // --- FİRMA VE DİĞER STATE'LER ---
   const [seciliFirmaId, setSeciliFirmaId] = useState(null);
@@ -66,19 +67,35 @@ export default function App() {
     }
   };
 
-  // --- ŞİFRE DEĞİŞTİRME FONKSİYONU ---
-  const sifreDegistir = async () => {
+  // --- OTP FONKSİYONLARI ---
+  const otpGonder = async () => {
+    if (!authData.username || !resetData.phone) return alert("Kullanıcı adı ve telefon gerekli!");
     try {
-      const res = await axios.post(`${API_BASE_URL}/change-password`, {
-        username: user.username,
-        oldPassword: passData.oldP,
-        newPassword: passData.newP
+      const res = await axios.post(`${API_BASE_URL}/send-otp`, { 
+        username: authData.username, 
+        phone: resetData.phone 
       });
       alert(res.data.message);
-      setShowPassChange(false);
-      setPassData({ oldP: '', newP: '' });
+      setOtpStep(2);
     } catch (err) {
-      alert(err.response?.data?.error || "Hata oluştu");
+      alert(err.response?.data?.error || "Kod gönderilemedi!");
+    }
+  };
+
+  const sifreOnayla = async () => {
+    if (!resetData.code || !resetData.newP) return alert("Kod ve yeni şifre gerekli!");
+    try {
+      const res = await axios.post(`${API_BASE_URL}/verify-otp-and-change`, { 
+        username: authData.username, 
+        otp: resetData.code, 
+        newPassword: resetData.newP 
+      });
+      alert(res.data.message);
+      setShowOTP(false);
+      setOtpStep(1);
+      setResetData({ phone: '', code: '', newP: '' });
+    } catch (err) {
+      alert(err.response?.data?.error || "Şifre güncellenemedi!");
     }
   };
 
@@ -201,7 +218,7 @@ export default function App() {
     } catch (e) { alert("PDF Hatası!"); }
   };
 
-  // --- GİRİŞ EKRANI ---
+  // --- GİRİŞ EKRANI (ŞİFRE SIFIRLAMA DAHİL) ---
   if (!user) {
     return (
       <div style={authContainer}>
@@ -210,7 +227,36 @@ export default function App() {
           <input style={inp} placeholder="Kullanıcı Adı" onChange={e => setAuthData({...authData, username: e.target.value})} />
           <input style={inp} type="password" placeholder="Şifre" onKeyPress={(e) => e.key === 'Enter' && handleAuth()} onChange={e => setAuthData({...authData, password: e.target.value})} />
           <button style={btn} onClick={handleAuth}>{isLogin ? 'Giriş Yap' : 'Kayıt Ol'}</button>
-          <p style={{cursor: 'pointer', fontSize: '14px', marginTop: '15px'}} onClick={() => setIsLogin(!isLogin)}>{isLogin ? 'Hesabınız yok mu? Üye olun' : 'Zaten üyeyim? Giriş yapın'}</p>
+          
+          <p style={{cursor: 'pointer', fontSize: '14px', marginTop: '15px'}} onClick={() => setIsLogin(!isLogin)}>
+            {isLogin ? 'Hesabınız yok mu? Üye olun' : 'Zaten üyeyim? Giriş yapın'}
+          </p>
+
+          {/* Şifre Sıfırlama Butonu */}
+          <p onClick={() => setShowOTP(!showOTP)} style={{cursor: 'pointer', fontSize: '13px', color: '#e67e22', marginTop: '10px', textDecoration: 'underline'}}>
+            Şifremi Unuttum / Değiştir
+          </p>
+
+          {/* OTP Paneli */}
+          {showOTP && (
+            <div style={{marginTop: '20px', padding: '15px', border: '1px solid #ddd', borderRadius: '10px', backgroundColor: '#fff9f4'}}>
+              {otpStep === 1 ? (
+                <>
+                  <h4 style={{margin: '0 0 10px 0', fontSize: '14px'}}>Kod Gönder</h4>
+                  <input style={inp} placeholder="Telefon Numaranız" onChange={e => setResetData({...resetData, phone: e.target.value})} />
+                  <button style={{...btn, width: '100%', marginTop: '10px', background: '#e67e22'}} onClick={otpGonder}>Kod Gönder</button>
+                </>
+              ) : (
+                <>
+                  <h4 style={{margin: '0 0 10px 0', fontSize: '14px'}}>Kodu Doğrula</h4>
+                  <input style={inp} placeholder="6 Haneli Kod" onChange={e => setResetData({...resetData, code: e.target.value})} />
+                  <input style={{...inp, marginTop: '8px'}} type="password" placeholder="Yeni Şifre" onChange={e => setResetData({...resetData, newP: e.target.value})} />
+                  <button style={{...btn, width: '100%', marginTop: '10px', background: '#2ecc71'}} onClick={sifreOnayla}>Şifreyi Güncelle</button>
+                </>
+              )}
+              <button onClick={() => {setShowOTP(false); setOtpStep(1);}} style={{background: 'none', border: 'none', fontSize: '12px', marginTop: '10px', cursor: 'pointer', color: '#666'}}>İptal</button>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -235,28 +281,12 @@ export default function App() {
           {projeler.length === 0 && <p style={{textAlign: 'center', color: '#999'}}>Henüz proje eklenmemiş.</p>}
         </div>
         
-        {/* Güvenli Çıkış */}
         <div 
           onClick={() => window.location.reload()} 
           style={{marginTop: '25px', fontSize: '14px', color: '#e74c3c', cursor: 'pointer', fontWeight: 'bold', textDecoration: 'underline'}}
         >
           🔒 Güvenli Çıkış Yap
         </div>
-
-        {/* Şifre Değiştirme Alanı */}
-        <div style={{ marginTop: '15px' }}>
-            <span onClick={() => setShowPassChange(!showPassChange)} style={{ cursor: 'pointer', fontSize: '13px', color: '#3498db', textDecoration: 'underline' }}>
-                ⚙️ Şifre Değiştir
-            </span>
-        </div>
-
-        {showPassChange && (
-            <div style={{ marginTop: '15px', background: 'white', padding: '15px', borderRadius: '10px', border: '1px solid #ddd', width: '300px' }}>
-                <input type="password" placeholder="Mevcut Şifre" style={{...inp, marginBottom: '8px'}} onChange={e => setPassData({...passData, oldP: e.target.value})} />
-                <input type="password" placeholder="Yeni Şifre" style={{...inp, marginBottom: '12px'}} onChange={e => setPassData({...passData, newP: e.target.value})} />
-                <button onClick={sifreDegistir} style={{...btn, width: '100%', background: '#2980b9'}}>Şifreyi Güncelle</button>
-            </div>
-        )}
       </div>
     );
   }
@@ -356,7 +386,7 @@ export default function App() {
   );
 }
 
-// STİLLER (Değiştirilmedi)
+// STİLLER
 const authContainer = { display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: '#f0f2f5' };
 const authBox = { background: 'white', padding: '40px', borderRadius: '15px', boxShadow: '0 10px 30px rgba(0,0,0,0.1)', textAlign: 'center', width: '350px' };
 const kart = (renk) => ({ flex: 1, background: 'white', padding: '20px', borderRadius: '12px', fontWeight: 'bold', boxShadow: '0 4px 6px rgba(0,0,0,0.05)', borderBottom: `5px solid ${renk}` });
