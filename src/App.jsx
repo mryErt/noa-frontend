@@ -54,7 +54,8 @@ export default function App() {
   };
 
   // --- AUTH İŞLEMLERİ ---
-  const handleAuth = async () => {
+  const handleAuth = async (e) => {
+    if(e) e.preventDefault(); // Form tetiklenmesini engelle
     const url = isLogin ? `${API_BASE_URL}/login` : `${API_BASE_URL}/register`;
     try {
       const res = await axios.post(url, authData);
@@ -72,8 +73,10 @@ export default function App() {
   };
 
   // --- OTP (E-POSTA) FONKSİYONLARI ---
-  const otpGonder = async () => {
-    if (!authData.username || !resetData.email) return alert("Kullanıcı adı ve e-posta gerekli!");
+  const otpGonder = async (e) => {
+    if(e) e.preventDefault(); // Giriş yap butonunu tetiklemesini engelle
+    if (!authData.username || !resetData.email) return alert("Lütfen önce yukarıya Kullanıcı Adınızı, aşağıya E-posta adresinizi girin!");
+    
     try {
       const res = await axios.post(`${API_BASE_URL}/send-otp`, { 
         username: authData.username, 
@@ -86,7 +89,8 @@ export default function App() {
     }
   };
 
-  const sifreOnayla = async () => {
+  const sifreOnayla = async (e) => {
+    if(e) e.preventDefault();
     if (!resetData.code || !resetData.newP) return alert("Kod ve yeni şifre gerekli!");
     try {
       const res = await axios.post(`${API_BASE_URL}/verify-otp-and-change`, { 
@@ -103,7 +107,7 @@ export default function App() {
     }
   };
 
-  // --- ŞİFRE DEĞİŞTİRME FONKSİYONU ---
+  // --- ŞİFRE DEĞİŞTİRME FONKSİYONU (İÇERİDEYKEN) ---
   const sifreDegistir = async () => {
     try {
       const res = await axios.post(`${API_BASE_URL}/change-password`, {
@@ -238,43 +242,88 @@ export default function App() {
     } catch (e) { alert("PDF Hatası!"); }
   };
 
-  // --- GİRİŞ EKRANI (E-POSTA OTP DAHİL) ---
+  // --- GİRİŞ EKRANI (ŞİFRE SIFIRLAMA DAHİL) ---
   if (!user) {
     return (
       <div style={authContainer}>
         <div style={authBox}>
           <h2 style={{color: '#1a3353', marginBottom: '20px'}}>{isLogin ? 'Giriş Yap' : 'Üye Ol'}</h2>
-          <input style={inp} placeholder="Kullanıcı Adı" onChange={e => setAuthData({...authData, username: e.target.value})} />
-          <input style={inp} type="password" placeholder="Şifre" onKeyPress={(e) => e.key === 'Enter' && handleAuth()} onChange={e => setAuthData({...authData, password: e.target.value})} />
-          <button style={btn} onClick={handleAuth}>{isLogin ? 'Giriş Yap' : 'Kayıt Ol'}</button>
+          
+          {/* Giriş Formu */}
+          <form onSubmit={handleAuth}>
+            <input 
+              style={inp} 
+              placeholder="Kullanıcı Adı" 
+              value={authData.username}
+              onChange={e => setAuthData({...authData, username: e.target.value})} 
+            />
+            <input 
+              style={{...inp, marginTop: '10px'}} 
+              type="password" 
+              placeholder="Şifre" 
+              value={authData.password}
+              onChange={e => setAuthData({...authData, password: e.target.value})} 
+            />
+            <button type="submit" style={{...btn, width: '100%', marginTop: '15px'}}>{isLogin ? 'Giriş Yap' : 'Kayıt Ol'}</button>
+          </form>
           
           <p style={{cursor: 'pointer', fontSize: '14px', marginTop: '15px'}} onClick={() => setIsLogin(!isLogin)}>
             {isLogin ? 'Hesabınız yok mu? Üye olun' : 'Zaten üyeyim? Giriş yapın'}
           </p>
 
-          {/* Şifre Sıfırlama Butonu */}
           <p onClick={() => setShowOTP(!showOTP)} style={{cursor: 'pointer', fontSize: '13px', color: '#e67e22', marginTop: '10px', textDecoration: 'underline'}}>
             Şifremi Unuttum / Değiştir
           </p>
 
-          {/* E-POSTA OTP Paneli */}
           {showOTP && (
             <div style={{marginTop: '20px', padding: '15px', border: '1px solid #ddd', borderRadius: '10px', backgroundColor: '#fff9f4'}}>
               {otpStep === 1 ? (
-                <>
+                <div>
                   <h4 style={{margin: '0 0 10px 0', fontSize: '14px'}}>E-posta ile Kod Gönder</h4>
-                  <input style={inp} placeholder="E-posta Adresiniz" onChange={e => setResetData({...resetData, email: e.target.value})} />
-                  <button style={{...btn, width: '100%', marginTop: '10px', background: '#e67e22'}} onClick={otpGonder}>Kod Gönder</button>
-                </>
+                  <input 
+                    style={inp} 
+                    placeholder="E-posta Adresiniz" 
+                    value={resetData.email}
+                    onChange={e => setResetData({...resetData, email: e.target.value})} 
+                  />
+                  <button 
+                    type="button"
+                    style={{...btn, width: '100%', marginTop: '10px', background: '#e67e22'}} 
+                    onClick={otpGonder}
+                  >
+                    Kod Gönder
+                  </button>
+                </div>
               ) : (
-                <>
+                <div>
                   <h4 style={{margin: '0 0 10px 0', fontSize: '14px'}}>Kodu Doğrula</h4>
-                  <input style={inp} placeholder="E-postadaki 6 Haneli Kod" onChange={e => setResetData({...resetData, code: e.target.value})} />
-                  <input style={{...inp, marginTop: '8px'}} type="password" placeholder="Yeni Şifre" onChange={e => setResetData({...resetData, newP: e.target.value})} />
-                  <button style={{...btn, width: '100%', marginTop: '10px', background: '#2ecc71'}} onClick={sifreOnayla}>Şifreyi Güncelle</button>
-                </>
+                  <input 
+                    style={inp} 
+                    placeholder="6 Haneli Kod" 
+                    onChange={e => setResetData({...resetData, code: e.target.value})} 
+                  />
+                  <input 
+                    style={{...inp, marginTop: '8px'}} 
+                    type="password" 
+                    placeholder="Yeni Şifre" 
+                    onChange={e => setResetData({...resetData, newP: e.target.value})} 
+                  />
+                  <button 
+                    type="button"
+                    style={{...btn, width: '100%', marginTop: '10px', background: '#2ecc71'}} 
+                    onClick={sifreOnayla}
+                  >
+                    Şifreyi Güncelle
+                  </button>
+                </div>
               )}
-              <button onClick={() => {setShowOTP(false); setOtpStep(1);}} style={{background: 'none', border: 'none', fontSize: '12px', marginTop: '10px', cursor: 'pointer', color: '#666'}}>İptal</button>
+              <button 
+                type="button"
+                onClick={() => {setShowOTP(false); setOtpStep(1);}} 
+                style={{background: 'none', border: 'none', fontSize: '12px', marginTop: '10px', cursor: 'pointer', color: '#666'}}
+              >
+                İptal
+              </button>
             </div>
           )}
         </div>
@@ -308,7 +357,6 @@ export default function App() {
           🔒 Güvenli Çıkış Yap
         </div>
 
-        {/* Eski Şifreyi Bilenler İçin Şifre Değiştirme Butonu */}
         <div style={{ marginTop: '15px' }}>
             <span onClick={() => setShowPassChange(!showPassChange)} style={{ cursor: 'pointer', fontSize: '13px', color: '#3498db', textDecoration: 'underline' }}>
                 ⚙️ Şifre Değiştir (Giriş Yapılmışken)
