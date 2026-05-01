@@ -53,9 +53,9 @@ export default function App() {
     }
   };
 
-  // --- AUTH İŞLEMLERİ ---
+  // --- AUTH İŞLEMLERİ (GİRİŞ/KAYIT) ---
   const handleAuth = async (e) => {
-    if(e) e.preventDefault(); // Form tetiklenmesini engelle
+    if(e) e.preventDefault(); // Sayfanın yenilenmesini engelle
     const url = isLogin ? `${API_BASE_URL}/login` : `${API_BASE_URL}/register`;
     try {
       const res = await axios.post(url, authData);
@@ -74,8 +74,14 @@ export default function App() {
 
   // --- OTP (E-POSTA) FONKSİYONLARI ---
   const otpGonder = async (e) => {
-    if(e) e.preventDefault(); // Giriş yap butonunu tetiklemesini engelle
-    if (!authData.username || !resetData.email) return alert("Lütfen önce yukarıya Kullanıcı Adınızı, aşağıya E-posta adresinizi girin!");
+    if(e) {
+      e.preventDefault();
+      e.stopPropagation(); // Diğer click eventlerini durdur
+    }
+    
+    if (!authData.username || !resetData.email) {
+      return alert("Lütfen yukarıya Kullanıcı Adınızı, aşağıya kayıtlı E-posta adresinizi girin!");
+    }
     
     try {
       const res = await axios.post(`${API_BASE_URL}/send-otp`, { 
@@ -85,6 +91,7 @@ export default function App() {
       alert(res.data.message);
       setOtpStep(2);
     } catch (err) {
+      console.error("Kod Gönderim Hatası:", err.response?.data);
       alert(err.response?.data?.error || "Kod gönderilemedi!");
     }
   };
@@ -107,7 +114,7 @@ export default function App() {
     }
   };
 
-  // --- ŞİFRE DEĞİŞTİRME FONKSİYONU (İÇERİDEYKEN) ---
+  // --- İÇERİDEYKEN ŞİFRE DEĞİŞTİRME ---
   const sifreDegistir = async () => {
     try {
       const res = await axios.post(`${API_BASE_URL}/change-password`, {
@@ -123,7 +130,7 @@ export default function App() {
     }
   };
 
-  // --- MANTIKSAL BAĞLANTILAR ---
+  // --- HESAPLAMALAR ---
   const suankiProje = projeler.find(p => p.id === seciliProjeId);
   const firmalar = suankiProje ? suankiProje.firmalar : [];
   const seciliFirma = firmalar.find(f => f.id === seciliFirmaId);
@@ -136,7 +143,7 @@ export default function App() {
   const genelOdenen = firmalar.reduce((t, f) => t + (f.odemeGecmisi?.reduce((ot, o) => ot + Number(o.miktar || 0), 0) || 0), 0);
   const genelBorc = genelMaliyet - genelOdenen;
 
-  // --- PROJE İŞLEMLERİ ---
+  // --- PROJE/FİRMA/KALEM İŞLEMLERİ (SADELEŞTİRİLMEDİ) ---
   const projeEkle = () => {
     if (!yeniProjeAdi.trim()) return;
     const yeni = { id: Date.now(), ad: yeniProjeAdi, firmalar: [] };
@@ -163,7 +170,6 @@ export default function App() {
     verileriKaydet(guncelProjeler);
   };
 
-  // --- FİRMA İŞLEMLERİ ---
   const firmaEkle = () => {
     if (!yeniFirmaAdi.trim()) return;
     const yeni = { id: Date.now(), ad: yeniFirmaAdi, kalemler: [], odemeGecmisi: [], not: '' };
@@ -208,19 +214,17 @@ export default function App() {
     setOdemeAciklaması('');
   };
 
-  // --- PDF ÜRETME ---
+  // --- PDF ---
   const pdfUret = () => {
     try {
       if (!seciliFirma) return;
       const doc = new jsPDF();
       const trTemizle = (m) => m ? m.toString().replace(/ğ/g, 'g').replace(/Ğ/g, 'G').replace(/ü/g, 'u').replace(/Ü/g, 'U').replace(/ş/g, 's').replace(/Ş/g, 'S').replace(/ı/g, 'i').replace(/İ/g, 'I').replace(/ö/g, 'o').replace(/Ö/g, 'O').replace(/ç/g, 'c').replace(/Ç/g, 'C') : "";
-      
       doc.setFontSize(18);
       doc.text(`${trTemizle(seciliFirma.ad)} - RAPOR`, 14, 22);
       doc.setFontSize(11);
       doc.text(`Proje: ${trTemizle(suankiProje.ad)}`, 14, 30);
       doc.text(`Tarih: ${new Date().toLocaleDateString()} | Net Borc: ${fBorc.toLocaleString()} TL`, 14, 38);
-
       autoTable(doc, {
         startY: 45,
         head: [['Hizmet/Malzeme', 'Miktar', 'Tutar']],
@@ -228,7 +232,6 @@ export default function App() {
         theme: 'grid',
         headStyles: { fillColor: [26, 51, 83] }
       });
-
       const finalY = doc.lastAutoTable.finalY;
       doc.text("Odeme Gecmisi", 14, finalY + 10);
       autoTable(doc, {
@@ -242,14 +245,13 @@ export default function App() {
     } catch (e) { alert("PDF Hatası!"); }
   };
 
-  // --- GİRİŞ EKRANI (ŞİFRE SIFIRLAMA DAHİL) ---
+  // --- GİRİŞ/KAYIT EKRANI ---
   if (!user) {
     return (
       <div style={authContainer}>
         <div style={authBox}>
           <h2 style={{color: '#1a3353', marginBottom: '20px'}}>{isLogin ? 'Giriş Yap' : 'Üye Ol'}</h2>
           
-          {/* Giriş Formu */}
           <form onSubmit={handleAuth}>
             <input 
               style={inp} 
@@ -282,12 +284,12 @@ export default function App() {
                   <h4 style={{margin: '0 0 10px 0', fontSize: '14px'}}>E-posta ile Kod Gönder</h4>
                   <input 
                     style={inp} 
-                    placeholder="E-posta Adresiniz" 
+                    placeholder="Kayıtlı E-posta Adresiniz" 
                     value={resetData.email}
                     onChange={e => setResetData({...resetData, email: e.target.value})} 
                   />
                   <button 
-                    type="button"
+                    type="button" // Kritik: Formu tetiklemez
                     style={{...btn, width: '100%', marginTop: '10px', background: '#e67e22'}} 
                     onClick={otpGonder}
                   >
@@ -300,12 +302,14 @@ export default function App() {
                   <input 
                     style={inp} 
                     placeholder="6 Haneli Kod" 
+                    value={resetData.code}
                     onChange={e => setResetData({...resetData, code: e.target.value})} 
                   />
                   <input 
                     style={{...inp, marginTop: '8px'}} 
                     type="password" 
                     placeholder="Yeni Şifre" 
+                    value={resetData.newP}
                     onChange={e => setResetData({...resetData, newP: e.target.value})} 
                   />
                   <button 
@@ -359,7 +363,7 @@ export default function App() {
 
         <div style={{ marginTop: '15px' }}>
             <span onClick={() => setShowPassChange(!showPassChange)} style={{ cursor: 'pointer', fontSize: '13px', color: '#3498db', textDecoration: 'underline' }}>
-                ⚙️ Şifre Değiştir (Giriş Yapılmışken)
+                ⚙️ Şifre Değiştir (İçeriden)
             </span>
         </div>
 
