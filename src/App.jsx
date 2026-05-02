@@ -6,11 +6,11 @@ import autoTable from 'jspdf-autotable';
 export default function App() {
   const [user, setUser] = useState(null);
   const [isLogin, setIsLogin] = useState(true);
-const [authData, setAuthData] = useState({ 
-  username: '', 
-  password: '',
-  email: ''
-});
+  const [authData, setAuthData] = useState({ 
+    username: '', 
+    password: '',
+    email: ''
+  });
 
   // --- PROJE STATE'LERİ ---
   const [projeler, setProjeler] = useState([]); 
@@ -19,10 +19,10 @@ const [authData, setAuthData] = useState({
 
   // --- E-POSTA / OTP ŞİFRE SIFIRLAMA STATE'LERİ ---
   const [showOTP, setShowOTP] = useState(false);
-  const [otpStep, setOtpStep] = useState(1); // 1: E-posta gir, 2: Kod ve Yeni Şifre gir
+  const [otpStep, setOtpStep] = useState(1); 
   const [resetData, setResetData] = useState({ email: '', code: '', newP: '' });
 
-  // --- ŞİFRE DEĞİŞTİRME (ESKİ ŞİFRE İLE) STATE'LERİ ---
+  // --- ŞİFRE DEĞİŞTİRME STATE'LERİ ---
   const [passData, setPassData] = useState({ oldP: '', newP: '' });
   const [showPassChange, setShowPassChange] = useState(false);
 
@@ -33,14 +33,6 @@ const [authData, setAuthData] = useState({
   const [odemeTutari, setOdemeTutari] = useState('');
   const [odemeAciklaması, setOdemeAciklaması] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-
-  const [duzenlenenId, setDuzenlenenId] = useState(null);
-  const [duzenlenenVeri, setDuzenlenenVeri] = useState({ cins: '', miktar: '', tutar: '' });
-  const [duzenlenenOdemeId, setDuzenlenenOdemeId] = useState(null);
-  const [duzenlenenOdemeVeri, setDuzenlenenOdemeVeri] = useState({ miktar: '', tarih: '', aciklama: '' });
-  const [duzenlenenFirmaId, setDuzenlenenFirmaId] = useState(null);
-  const [duzenlenenFirmaAdi, setDuzenlenenFirmaAdi] = useState('');
-  const [listeAcik, setListeAcik] = useState(true);
 
   const API_BASE_URL = 'https://noa-backend-ax4l.onrender.com/api';
 
@@ -57,7 +49,7 @@ const [authData, setAuthData] = useState({
     }
   };
 
-  // --- AUTH İŞLEMLERİ (GİRİŞ/KAYIT) ---
+  // --- AUTH İŞLEMLERİ ---
   const handleAuth = async (e) => {
     if(e) e.preventDefault();
     const url = isLogin ? `${API_BASE_URL}/login` : `${API_BASE_URL}/register`;
@@ -76,12 +68,25 @@ const [authData, setAuthData] = useState({
     }
   };
 
-  // --- OTP (E-POSTA) FONKSİYONLARI ---
+  // --- PROJE İSMİ DÜZENLEME (YENİ EKLEDİĞİMİZ KISIM) ---
+  const projeAdiniDuzenle = (e, id, eskiAd) => {
+    e.stopPropagation(); // Kartın tıklanma olayını (proje içine girme) engelle
+    const yeniAd = prompt("Proje adını düzenleyin:", eskiAd);
+    
+    if (yeniAd && yeniAd.trim() !== "" && yeniAd !== eskiAd) {
+      const guncelListe = projeler.map(p => 
+        p.id === id ? { ...p, ad: yeniAd } : p
+      );
+      setProjeler(guncelListe);
+      verileriKaydet(guncelListe);
+    }
+  };
+
+  // --- OTP İŞLEMLERİ ---
   const otpGonder = async () => {
     if (!authData.username || !resetData.email) {
       return alert("Lütfen yukarıya Kullanıcı Adınızı, aşağıya kayıtlı E-posta adresinizi girin!");
     }
-    
     try {
       const res = await axios.post(`${API_BASE_URL}/send-otp`, { 
         username: authData.username, 
@@ -90,7 +95,6 @@ const [authData, setAuthData] = useState({
       alert(res.data.message);
       setOtpStep(2);
     } catch (err) {
-      console.error("Kod Gönderim Hatası:", err.response?.data);
       alert(err.response?.data?.error || "Kod gönderilemedi!");
     }
   };
@@ -112,7 +116,6 @@ const [authData, setAuthData] = useState({
     }
   };
 
-  // --- İÇERİDEYKEN ŞİFRE DEĞİŞTİRME ---
   const sifreDegistir = async () => {
     try {
       const res = await axios.post(`${API_BASE_URL}/change-password`, {
@@ -242,90 +245,36 @@ const [authData, setAuthData] = useState({
     } catch (e) { alert("PDF Hatası!"); }
   };
 
-  // --- GİRİŞ/KAYIT EKRANI ---
+  // --- GİRİŞ EKRANI ---
   if (!user) {
     return (
       <div style={authContainer}>
         <div style={authBox}>
           <h2 style={{color: '#1a3353', marginBottom: '20px'}}>{isLogin ? 'Giriş Yap' : 'Üye Ol'}</h2>
-          
           <form onSubmit={handleAuth}>
-            <input 
-              style={inp} 
-              placeholder="Kullanıcı Adı" 
-              value={authData.username}
-              onChange={e => setAuthData({...authData, username: e.target.value})} 
-            />
-            <input 
-              style={{...inp, marginTop: '10px'}} 
-              type="password" 
-              placeholder="Şifre" 
-              value={authData.password}
-              onChange={e => setAuthData({...authData, password: e.target.value})} 
-            />
+            <input style={inp} placeholder="Kullanıcı Adı" value={authData.username} onChange={e => setAuthData({...authData, username: e.target.value})} />
+            <input style={{...inp, marginTop: '10px'}} type="password" placeholder="Şifre" value={authData.password} onChange={e => setAuthData({...authData, password: e.target.value})} />
             <button type="submit" style={{...btn, width: '100%', marginTop: '15px'}}>{isLogin ? 'Giriş Yap' : 'Kayıt Ol'}</button>
           </form>
-          
-          <p style={{cursor: 'pointer', fontSize: '14px', marginTop: '15px'}} onClick={() => setIsLogin(!isLogin)}>
-            {isLogin ? 'Hesabınız yok mu? Üye olun' : 'Zaten üyeyim? Giriş yapın'}
-          </p>
-
-          <p onClick={() => setShowOTP(!showOTP)} style={{cursor: 'pointer', fontSize: '13px', color: '#e67e22', marginTop: '10px', textDecoration: 'underline'}}>
-            Şifremi Unuttum / Değiştir
-          </p>
-
+          <p style={{cursor: 'pointer', fontSize: '14px', marginTop: '15px'}} onClick={() => setIsLogin(!isLogin)}>{isLogin ? 'Hesabınız yok mu? Üye olun' : 'Zaten üyeyim? Giriş yapın'}</p>
+          <p onClick={() => setShowOTP(!showOTP)} style={{cursor: 'pointer', fontSize: '13px', color: '#e67e22', marginTop: '10px', textDecoration: 'underline'}}>Şifremi Unuttum / Değiştir</p>
           {showOTP && (
             <div style={{marginTop: '20px', padding: '15px', border: '1px solid #ddd', borderRadius: '10px', backgroundColor: '#fff9f4'}}>
               {otpStep === 1 ? (
                 <div style={{textAlign: 'left'}}>
                   <h4 style={{margin: '0 0 10px 0', fontSize: '14px'}}>E-posta ile Kod Gönder</h4>
-                  <input 
-                    style={inp} 
-                    placeholder="Kayıtlı E-posta Adresiniz" 
-                    value={resetData.email}
-                    onChange={e => setResetData({...resetData, email: e.target.value})} 
-                  />
-                  {/* KRİTİK DEĞİŞİKLİK: type="button" formun dışında bağımsız çalışmasını sağlar */}
-                  <button 
-                    type="button" 
-                    style={{...btn, width: '100%', marginTop: '10px', background: '#e67e22'}} 
-                    onClick={() => otpGonder()}
-                  >
-                    Kod Gönder
-                  </button>
+                  <input style={inp} placeholder="Kayıtlı E-posta Adresiniz" value={resetData.email} onChange={e => setResetData({...resetData, email: e.target.value})} />
+                  <button type="button" style={{...btn, width: '100%', marginTop: '10px', background: '#e67e22'}} onClick={() => otpGonder()}>Kod Gönder</button>
                 </div>
               ) : (
                 <div style={{textAlign: 'left'}}>
                   <h4 style={{margin: '0 0 10px 0', fontSize: '14px'}}>Kodu Doğrula</h4>
-                  <input 
-                    style={inp} 
-                    placeholder="6 Haneli Kod" 
-                    value={resetData.code}
-                    onChange={e => setResetData({...resetData, code: e.target.value})} 
-                  />
-                  <input 
-                    style={{...inp, marginTop: '8px'}} 
-                    type="password" 
-                    placeholder="Yeni Şifre" 
-                    value={resetData.newP}
-                    onChange={e => setResetData({...resetData, newP: e.target.value})} 
-                  />
-                  <button 
-                    type="button"
-                    style={{...btn, width: '100%', marginTop: '10px', background: '#2ecc71'}} 
-                    onClick={() => sifreOnayla()}
-                  >
-                    Şifreyi Güncelle
-                  </button>
+                  <input style={inp} placeholder="6 Haneli Kod" value={resetData.code} onChange={e => setResetData({...resetData, code: e.target.value})} />
+                  <input style={{...inp, marginTop: '8px'}} type="password" placeholder="Yeni Şifre" value={resetData.newP} onChange={e => setResetData({...resetData, newP: e.target.value})} />
+                  <button type="button" style={{...btn, width: '100%', marginTop: '10px', background: '#2ecc71'}} onClick={() => sifreOnayla()}>Şifreyi Güncelle</button>
                 </div>
               )}
-              <button 
-                type="button"
-                onClick={() => {setShowOTP(false); setOtpStep(1);}} 
-                style={{background: 'none', border: 'none', fontSize: '12px', marginTop: '10px', cursor: 'pointer', color: '#666', width: '100%'}}
-              >
-                İptal
-              </button>
+              <button type="button" onClick={() => {setShowOTP(false); setOtpStep(1);}} style={{background: 'none', border: 'none', fontSize: '12px', marginTop: '10px', cursor: 'pointer', color: '#666', width: '100%'}}>İptal</button>
             </div>
           )}
         </div>
@@ -346,25 +295,30 @@ const [authData, setAuthData] = useState({
           {projeler.map(p => (
             <div key={p.id} onClick={() => setSeciliProjeId(p.id)} style={{ padding: '15px', background: '#f8f9fa', borderRadius: '10px', marginBottom: '10px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid #eee' }}>
               <strong>{p.ad.toUpperCase()}</strong>
-              <button onClick={(e) => { e.stopPropagation(); projeSil(p.id); }} style={{background: 'none', border: 'none', color: '#e74c3c', cursor: 'pointer', fontSize: '18px'}}>🗑️</button>
+              <div style={{display: 'flex', gap: '10px'}}>
+                {/* DÜZENLEME BUTONU */}
+                <button 
+                  onClick={(e) => projeAdiniDuzenle(e, p.id, p.ad)} 
+                  style={{background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px'}}
+                  title="Düzenle"
+                >
+                  ✏️
+                </button>
+                {/* SİLME BUTONU */}
+                <button 
+                  onClick={(e) => { e.stopPropagation(); projeSil(p.id); }} 
+                  style={{background: 'none', border: 'none', color: '#e74c3c', cursor: 'pointer', fontSize: '18px'}}
+                  title="Sil"
+                >
+                  🗑️
+                </button>
+              </div>
             </div>
           ))}
           {projeler.length === 0 && <p style={{textAlign: 'center', color: '#999'}}>Henüz proje eklenmemiş.</p>}
         </div>
-        
-        <div 
-          onClick={() => window.location.reload()} 
-          style={{marginTop: '25px', fontSize: '14px', color: '#e74c3c', cursor: 'pointer', fontWeight: 'bold', textDecoration: 'underline'}}
-        >
-          🔒 Güvenli Çıkış Yap
-        </div>
-
-        <div style={{ marginTop: '15px' }}>
-            <span onClick={() => setShowPassChange(!showPassChange)} style={{ cursor: 'pointer', fontSize: '13px', color: '#3498db', textDecoration: 'underline' }}>
-                ⚙️ Şifre Değiştir (İçeriden)
-            </span>
-        </div>
-
+        <div onClick={() => window.location.reload()} style={{marginTop: '25px', fontSize: '14px', color: '#e74c3c', cursor: 'pointer', fontWeight: 'bold', textDecoration: 'underline'}}>🔒 Güvenli Çıkış Yap</div>
+        <div style={{ marginTop: '15px' }}><span onClick={() => setShowPassChange(!showPassChange)} style={{ cursor: 'pointer', fontSize: '13px', color: '#3498db', textDecoration: 'underline' }}>⚙️ Şifre Değiştir (İçeriden)</span></div>
         {showPassChange && (
             <div style={{ marginTop: '15px', background: 'white', padding: '15px', borderRadius: '10px', border: '1px solid #ddd', width: '300px' }}>
                 <input type="password" placeholder="Mevcut Şifre" style={{...inp, marginBottom: '8px'}} onChange={e => setPassData({...passData, oldP: e.target.value})} />
@@ -386,16 +340,14 @@ const [authData, setAuthData] = useState({
         </div>
         <div style={{fontSize: '14px'}}><b>{user.username}</b> | <span style={{cursor: 'pointer', color: 'red'}} onClick={() => window.location.reload()}>Çıkış</span></div>
       </div>
-      
       <div style={{ display: 'flex', gap: '15px', marginBottom: '25px' }}>
         <div style={kart('#3498db')}>Genel Maliyet: {genelMaliyet.toLocaleString()} TL</div>
         <div style={kart('#2ecc71')}>Toplam Ödenen: {genelOdenen.toLocaleString()} TL</div>
         <div style={{ ...kart('#e74c3c'), color: '#e74c3c' }}>Net Borç: {genelBorc.toLocaleString()} TL</div>
       </div>
-
       <div style={{ display: 'flex', gap: '20px' }}>
         <div style={{ width: '320px', background: 'white', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)', alignSelf: 'flex-start' }}>
-          <h4 style={{margin: '0 0 10px 0'}}>Firmalar</h4>
+          <h4>Firmalar</h4>
           <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="🔍 Firma Ara..." style={{...inp, marginBottom: '10px'}} />
           <div style={{display: 'flex', gap: '5px', marginBottom: '15px'}}>
             <input value={yeniFirmaAdi} onChange={e => setYeniFirmaAdi(e.target.value)} placeholder="Firma Ekle..." style={inp} />
@@ -409,7 +361,6 @@ const [authData, setAuthData] = useState({
             ))}
           </div>
         </div>
-
         <div style={{ flex: 1, background: 'white', padding: '25px', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)' }}>
           {seciliFirma ? (
             <>
@@ -425,12 +376,10 @@ const [authData, setAuthData] = useState({
                    <div style={kucukOzet('#e74c3c')}>Borç: {fBorc.toLocaleString()} TL</div>
                 </div>
               </div>
-
               <div style={{marginBottom: '20px'}}>
                 <label style={{fontSize: '13px', color: '#666', fontWeight: 'bold'}}>Firma Notları / Açıklama:</label>
                 <textarea value={seciliFirma.not} onChange={(e) => notGuncelle(e.target.value)} style={{...inp, height: '80px', marginTop: '5px'}} placeholder="Firmaya dair özel notlar..." />
               </div>
-
               <div style={{ background: '#f8f9fa', padding: '15px', borderRadius: '10px', marginBottom: '20px' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: '10px' }}>
                   <input placeholder="Malzeme/Hizmet" value={yeniKalem.cins} onChange={e => setYeniKalem({ ...yeniKalem, cins: e.target.value })} style={inp} />
@@ -439,14 +388,12 @@ const [authData, setAuthData] = useState({
                   <button onClick={kalemEkle} style={btn}>Ekle</button>
                 </div>
               </div>
-
               <div style={{display: 'flex', gap: '10px', marginBottom: '20px', padding: '15px', backgroundColor: '#eafaf1', borderRadius: '10px', alignItems: 'center'}}>
                   <strong style={{fontSize: '14px', color: '#27ae60'}}>Nakit/Çek Ödeme:</strong>
                   <input placeholder="Miktar..." type="number" value={odemeTutari} onChange={e => setOdemeTutari(e.target.value)} style={{...inp, flex: 1}} />
                   <input placeholder="Açıklama..." value={odemeAciklaması} onChange={e => setOdemeAciklaması(e.target.value)} style={{...inp, flex: 2}} />
                   <button onClick={odemeYap} style={{ ...btn, background: '#2ecc71', width: '180px' }}>Öde</button>
               </div>
-
               <div style={{display: 'grid', gridTemplateColumns: '2fr 1.2fr', gap: '25px'}}>
                 <div>
                   <h5 style={{margin: '0 0 10px 0'}}>Harcama Kalemleri</h5>
