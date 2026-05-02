@@ -17,7 +17,7 @@ export default function App() {
   const [seciliProjeId, setSeciliProjeId] = useState(null); 
   const [yeniProjeAdi, setYeniProjeAdi] = useState('');
 
-  // --- E-POSTA / OTP ŞİFRE SIFIRLAMA STATE'LERİ ---
+  // --- E-POSTA / OTP STATE'LERİ ---
   const [showOTP, setShowOTP] = useState(false);
   const [otpStep, setOtpStep] = useState(1); 
   const [resetData, setResetData] = useState({ email: '', code: '', newP: '' });
@@ -68,67 +68,50 @@ export default function App() {
     }
   };
 
-  // --- PROJE İSMİ DÜZENLEME (YENİ EKLEDİĞİMİZ KISIM) ---
+  // --- DÜZENLEME FONKSİYONLARI ---
   const projeAdiniDuzenle = (e, id, eskiAd) => {
-    e.stopPropagation(); // Kartın tıklanma olayını (proje içine girme) engelle
+    e.stopPropagation();
     const yeniAd = prompt("Proje adını düzenleyin:", eskiAd);
-    
     if (yeniAd && yeniAd.trim() !== "" && yeniAd !== eskiAd) {
-      const guncelListe = projeler.map(p => 
-        p.id === id ? { ...p, ad: yeniAd } : p
-      );
+      const guncelListe = projeler.map(p => p.id === id ? { ...p, ad: yeniAd } : p);
       setProjeler(guncelListe);
       verileriKaydet(guncelListe);
     }
   };
 
-  // --- OTP İŞLEMLERİ ---
-  const otpGonder = async () => {
-    if (!authData.username || !resetData.email) {
-      return alert("Lütfen yukarıya Kullanıcı Adınızı, aşağıya kayıtlı E-posta adresinizi girin!");
-    }
-    try {
-      const res = await axios.post(`${API_BASE_URL}/send-otp`, { 
-        username: authData.username, 
-        email: resetData.email 
-      });
-      alert(res.data.message);
-      setOtpStep(2);
-    } catch (err) {
-      alert(err.response?.data?.error || "Kod gönderilemedi!");
+  const firmaAdiniDuzenle = (id, eskiAd) => {
+    const yeniAd = prompt("Firma adını düzenleyin:", eskiAd);
+    if (yeniAd && yeniAd.trim() !== "" && yeniAd !== eskiAd) {
+      const guncelFirmalar = firmalar.map(f => f.id === id ? { ...f, ad: yeniAd } : f);
+      projeleriGuncelleVeKaydet(guncelFirmalar);
     }
   };
 
-  const sifreOnayla = async () => {
-    if (!resetData.code || !resetData.newP) return alert("Kod ve yeni şifre gerekli!");
+  // --- OTP / ŞİFRE FONKSİYONLARI ---
+  const otpGonder = async () => {
+    if (!authData.username || !resetData.email) return alert("Bilgileri eksiksiz girin!");
     try {
-      const res = await axios.post(`${API_BASE_URL}/verify-otp-and-change`, { 
-        username: authData.username, 
-        otp: resetData.code, 
-        newPassword: resetData.newP 
-      });
+      const res = await axios.post(`${API_BASE_URL}/send-otp`, { username: authData.username, email: resetData.email });
+      alert(res.data.message);
+      setOtpStep(2);
+    } catch (err) { alert(err.response?.data?.error || "Hata!"); }
+  };
+
+  const sifreOnayla = async () => {
+    try {
+      const res = await axios.post(`${API_BASE_URL}/verify-otp-and-change`, { username: authData.username, otp: resetData.code, newPassword: resetData.newP });
       alert(res.data.message);
       setShowOTP(false);
-      setOtpStep(1);
       setResetData({ email: '', code: '', newP: '' });
-    } catch (err) {
-      alert(err.response?.data?.error || "Şifre güncellenemedi!");
-    }
+    } catch (err) { alert(err.response?.data?.error || "Hata!"); }
   };
 
   const sifreDegistir = async () => {
     try {
-      const res = await axios.post(`${API_BASE_URL}/change-password`, {
-        username: user.username,
-        oldPassword: passData.oldP,
-        newPassword: passData.newP
-      });
+      const res = await axios.post(`${API_BASE_URL}/change-password`, { username: user.username, oldPassword: passData.oldP, newPassword: passData.newP });
       alert(res.data.message);
       setShowPassChange(false);
-      setPassData({ oldP: '', newP: '' });
-    } catch (err) {
-      alert(err.response?.data?.error || "Hata oluştu");
-    }
+    } catch (err) { alert(err.response?.data?.error || "Hata!"); }
   };
 
   // --- HESAPLAMALAR ---
@@ -144,18 +127,17 @@ export default function App() {
   const genelOdenen = firmalar.reduce((t, f) => t + (f.odemeGecmisi?.reduce((ot, o) => ot + Number(o.miktar || 0), 0) || 0), 0);
   const genelBorc = genelMaliyet - genelOdenen;
 
-  // --- PROJE İŞLEMLERİ ---
+  // --- PROJE / FİRMA İŞLEMLERİ ---
   const projeEkle = () => {
     if (!yeniProjeAdi.trim()) return;
-    const yeni = { id: Date.now(), ad: yeniProjeAdi, firmalar: [] };
-    const liste = [...projeler, yeni];
+    const liste = [...projeler, { id: Date.now(), ad: yeniProjeAdi, firmalar: [] }];
     setProjeler(liste);
     verileriKaydet(liste);
     setYeniProjeAdi('');
   };
 
   const projeSil = (id) => {
-    if (window.confirm("Bu projeyi ve içindeki TÜM verileri silmek istediğinize emin misiniz?")) {
+    if (window.confirm("Silinsin mi?")) {
       const liste = projeler.filter(p => p.id !== id);
       setProjeler(liste);
       verileriKaydet(liste);
@@ -164,23 +146,20 @@ export default function App() {
   };
 
   const projeleriGuncelleVeKaydet = (yeniFirmalar) => {
-    const guncelProjeler = projeler.map(p => 
-      p.id === seciliProjeId ? { ...p, firmalar: yeniFirmalar } : p
-    );
+    const guncelProjeler = projeler.map(p => p.id === seciliProjeId ? { ...p, firmalar: yeniFirmalar } : p);
     setProjeler(guncelProjeler);
     verileriKaydet(guncelProjeler);
   };
 
   const firmaEkle = () => {
     if (!yeniFirmaAdi.trim()) return;
-    const yeni = { id: Date.now(), ad: yeniFirmaAdi, kalemler: [], odemeGecmisi: [], not: '' };
-    const yeniListe = [...firmalar, yeni];
+    const yeniListe = [...firmalar, { id: Date.now(), ad: yeniFirmaAdi, kalemler: [], odemeGecmisi: [], not: '' }];
     projeleriGuncelleVeKaydet(yeniListe);
     setYeniFirmaAdi('');
   };
 
   const firmaSil = (id) => {
-    if (window.confirm("Bu firmayı silmek istediğinize emin misiniz?")) {
+    if (window.confirm("Firma silinsin mi?")) {
       const liste = firmalar.filter(f => f.id !== id);
       projeleriGuncelleVeKaydet(liste);
       setSeciliFirmaId(null);
@@ -194,22 +173,14 @@ export default function App() {
 
   const kalemEkle = () => {
     if (!yeniKalem.cins || !yeniKalem.tutar) return;
-    const liste = firmalar.map(f => f.id === seciliFirmaId 
-      ? { ...f, kalemler: [...f.kalemler, { ...yeniKalem, id: Date.now(), tutar: Number(yeniKalem.tutar) }] } : f);
+    const liste = firmalar.map(f => f.id === seciliFirmaId ? { ...f, kalemler: [...f.kalemler, { ...yeniKalem, id: Date.now(), tutar: Number(yeniKalem.tutar) }] } : f);
     projeleriGuncelleVeKaydet(liste);
     setYeniKalem({ cins: '', miktar: '', tutar: '' });
   };
 
   const odemeYap = () => {
     if (!odemeTutari || Number(odemeTutari) <= 0) return;
-    const liste = firmalar.map(f => f.id === seciliFirmaId ? { 
-      ...f, odemeGecmisi: [...f.odemeGecmisi, { 
-        id: Date.now(), 
-        miktar: Number(odemeTutari), 
-        tarih: new Date().toLocaleDateString(),
-        aciklama: odemeAciklaması
-      }] 
-    } : f);
+    const liste = firmalar.map(f => f.id === seciliFirmaId ? { ...f, odemeGecmisi: [...f.odemeGecmisi, { id: Date.now(), miktar: Number(odemeTutari), tarih: new Date().toLocaleDateString(), aciklama: odemeAciklaması }] } : f);
     projeleriGuncelleVeKaydet(liste);
     setOdemeTutari('');
     setOdemeAciklaması('');
@@ -217,64 +188,34 @@ export default function App() {
 
   const pdfUret = () => {
     try {
-      if (!seciliFirma) return;
       const doc = new jsPDF();
-      const trTemizle = (m) => m ? m.toString().replace(/ğ/g, 'g').replace(/Ğ/g, 'G').replace(/ü/g, 'u').replace(/Ü/g, 'U').replace(/ş/g, 's').replace(/Ş/g, 'S').replace(/ı/g, 'i').replace(/İ/g, 'I').replace(/ö/g, 'o').replace(/Ö/g, 'O').replace(/ç/g, 'c').replace(/Ç/g, 'C') : "";
-      doc.setFontSize(18);
-      doc.text(`${trTemizle(seciliFirma.ad)} - RAPOR`, 14, 22);
-      doc.setFontSize(11);
-      doc.text(`Proje: ${trTemizle(suankiProje.ad)}`, 14, 30);
-      doc.text(`Tarih: ${new Date().toLocaleDateString()} | Net Borc: ${fBorc.toLocaleString()} TL`, 14, 38);
-      autoTable(doc, {
-        startY: 45,
-        head: [['Hizmet/Malzeme', 'Miktar', 'Tutar']],
-        body: seciliFirma.kalemler.map(k => [trTemizle(k.cins), trTemizle(k.miktar), `${k.tutar.toLocaleString()} TL`]),
-        theme: 'grid',
-        headStyles: { fillColor: [26, 51, 83] }
-      });
-      const finalY = doc.lastAutoTable.finalY;
-      doc.text("Odeme Gecmisi", 14, finalY + 10);
-      autoTable(doc, {
-        startY: finalY + 15,
-        head: [['Tarih', 'Aciklama', 'Miktar']],
-        body: seciliFirma.odemeGecmisi.map(o => [o.tarih, trTemizle(o.aciklama) || '-', `${o.miktar.toLocaleString()} TL`]),
-        theme: 'striped',
-        headStyles: { fillColor: [46, 204, 113] }
-      });
-      doc.save(`${trTemizle(seciliFirma.ad)}_rapor.pdf`);
+      const tr = (m) => m ? m.toString().replace(/ğ/g, 'g').replace(/Ğ/g, 'G').replace(/ü/g, 'u').replace(/Ü/g, 'U').replace(/ş/g, 's').replace(/Ş/g, 'S').replace(/ı/g, 'i').replace(/İ/g, 'I').replace(/ö/g, 'o').replace(/Ö/g, 'O').replace(/ç/g, 'c').replace(/Ç/g, 'C') : "";
+      doc.text(`${tr(seciliFirma.ad)} RAPORU`, 14, 20);
+      autoTable(doc, { head: [['Hizmet', 'Miktar', 'Tutar']], body: seciliFirma.kalemler.map(k => [tr(k.cins), tr(k.miktar), `${k.tutar} TL`]) });
+      doc.save(`${tr(seciliFirma.ad)}.pdf`);
     } catch (e) { alert("PDF Hatası!"); }
   };
 
-  // --- GİRİŞ EKRANI ---
+  // --- ARAYÜZ ---
   if (!user) {
     return (
       <div style={authContainer}>
         <div style={authBox}>
-          <h2 style={{color: '#1a3353', marginBottom: '20px'}}>{isLogin ? 'Giriş Yap' : 'Üye Ol'}</h2>
+          <h2>{isLogin ? 'Giriş' : 'Üye Ol'}</h2>
           <form onSubmit={handleAuth}>
-            <input style={inp} placeholder="Kullanıcı Adı" value={authData.username} onChange={e => setAuthData({...authData, username: e.target.value})} />
+            <input style={inp} placeholder="Kullanıcı" value={authData.username} onChange={e => setAuthData({...authData, username: e.target.value})} />
             <input style={{...inp, marginTop: '10px'}} type="password" placeholder="Şifre" value={authData.password} onChange={e => setAuthData({...authData, password: e.target.value})} />
-            <button type="submit" style={{...btn, width: '100%', marginTop: '15px'}}>{isLogin ? 'Giriş Yap' : 'Kayıt Ol'}</button>
+            <button style={{...btn, width: '100%', marginTop: '15px'}}>{isLogin ? 'Giriş' : 'Kayıt'}</button>
           </form>
-          <p style={{cursor: 'pointer', fontSize: '14px', marginTop: '15px'}} onClick={() => setIsLogin(!isLogin)}>{isLogin ? 'Hesabınız yok mu? Üye olun' : 'Zaten üyeyim? Giriş yapın'}</p>
-          <p onClick={() => setShowOTP(!showOTP)} style={{cursor: 'pointer', fontSize: '13px', color: '#e67e22', marginTop: '10px', textDecoration: 'underline'}}>Şifremi Unuttum / Değiştir</p>
+          <p onClick={() => setIsLogin(!isLogin)} style={{cursor: 'pointer', fontSize: '13px'}}>{isLogin ? 'Üye Ol' : 'Giriş Yap'}</p>
+          <p onClick={() => setShowOTP(!showOTP)} style={{color: 'orange', cursor: 'pointer', fontSize: '12px'}}>Şifremi Unuttum</p>
           {showOTP && (
-            <div style={{marginTop: '20px', padding: '15px', border: '1px solid #ddd', borderRadius: '10px', backgroundColor: '#fff9f4'}}>
+            <div style={{marginTop: '10px', background: '#fff5eb', padding: '10px', borderRadius: '8px'}}>
               {otpStep === 1 ? (
-                <div style={{textAlign: 'left'}}>
-                  <h4 style={{margin: '0 0 10px 0', fontSize: '14px'}}>E-posta ile Kod Gönder</h4>
-                  <input style={inp} placeholder="Kayıtlı E-posta Adresiniz" value={resetData.email} onChange={e => setResetData({...resetData, email: e.target.value})} />
-                  <button type="button" style={{...btn, width: '100%', marginTop: '10px', background: '#e67e22'}} onClick={() => otpGonder()}>Kod Gönder</button>
-                </div>
+                <><input style={inp} placeholder="E-posta" onChange={e => setResetData({...resetData, email: e.target.value})} /><button style={{...btn, background: 'orange', width: '100%'}} onClick={otpGonder}>Kod Gönder</button></>
               ) : (
-                <div style={{textAlign: 'left'}}>
-                  <h4 style={{margin: '0 0 10px 0', fontSize: '14px'}}>Kodu Doğrula</h4>
-                  <input style={inp} placeholder="6 Haneli Kod" value={resetData.code} onChange={e => setResetData({...resetData, code: e.target.value})} />
-                  <input style={{...inp, marginTop: '8px'}} type="password" placeholder="Yeni Şifre" value={resetData.newP} onChange={e => setResetData({...resetData, newP: e.target.value})} />
-                  <button type="button" style={{...btn, width: '100%', marginTop: '10px', background: '#2ecc71'}} onClick={() => sifreOnayla()}>Şifreyi Güncelle</button>
-                </div>
+                <><input style={inp} placeholder="Kod" onChange={e => setResetData({...resetData, code: e.target.value})} /><input style={inp} placeholder="Yeni Şifre" onChange={e => setResetData({...resetData, newP: e.target.value})} /><button style={{...btn, background: 'green', width: '100%'}} onClick={sifreOnayla}>Onayla</button></>
               )}
-              <button type="button" onClick={() => {setShowOTP(false); setOtpStep(1);}} style={{background: 'none', border: 'none', fontSize: '12px', marginTop: '10px', cursor: 'pointer', color: '#666', width: '100%'}}>İptal</button>
             </div>
           )}
         </div>
@@ -282,146 +223,82 @@ export default function App() {
     );
   }
 
-  // --- PROJE SEÇİM EKRANI ---
   if (!seciliProjeId) {
     return (
-      <div style={{ padding: '40px', backgroundColor: '#f0f2f5', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-        <h2 style={{color: '#1a3353', marginBottom: '30px'}}>Projelerim</h2>
-        <div style={{ width: '450px', background: 'white', padding: '30px', borderRadius: '15px', boxShadow: '0 10px 30px rgba(0,0,0,0.05)' }}>
-          <div style={{display: 'flex', gap: '10px', marginBottom: '25px'}}>
-            <input value={yeniProjeAdi} onChange={e => setYeniProjeAdi(e.target.value)} placeholder="Yeni Proje Adı..." style={inp} />
-            <button onClick={projeEkle} style={btn}>Ekle</button>
+      <div style={{padding: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
+        <h2>Projelerim</h2>
+        <div style={{width: '400px', background: 'white', padding: '20px', borderRadius: '10px', boxShadow: '0 5px 15px rgba(0,0,0,0.1)'}}>
+          <div style={{display: 'flex', gap: '5px', marginBottom: '15px'}}>
+            <input style={inp} value={yeniProjeAdi} onChange={e => setYeniProjeAdi(e.target.value)} placeholder="Proje Adı..." />
+            <button style={btn} onClick={projeEkle}>Ekle</button>
           </div>
           {projeler.map(p => (
-            <div key={p.id} onClick={() => setSeciliProjeId(p.id)} style={{ padding: '15px', background: '#f8f9fa', borderRadius: '10px', marginBottom: '10px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid #eee' }}>
-              <strong>{p.ad.toUpperCase()}</strong>
-              <div style={{display: 'flex', gap: '10px'}}>
-                {/* DÜZENLEME BUTONU */}
-                <button 
-                  onClick={(e) => projeAdiniDuzenle(e, p.id, p.ad)} 
-                  style={{background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px'}}
-                  title="Düzenle"
-                >
-                  ✏️
-                </button>
-                {/* SİLME BUTONU */}
-                <button 
-                  onClick={(e) => { e.stopPropagation(); projeSil(p.id); }} 
-                  style={{background: 'none', border: 'none', color: '#e74c3c', cursor: 'pointer', fontSize: '18px'}}
-                  title="Sil"
-                >
-                  🗑️
-                </button>
-              </div>
+            <div key={p.id} onClick={() => setSeciliProjeId(p.id)} style={{padding: '12px', borderBottom: '1px solid #eee', cursor: 'pointer', display: 'flex', justifyContent: 'space-between'}}>
+              <strong>{p.ad}</strong>
+              <div><button onClick={(e) => projeAdiniDuzenle(e, p.id, p.ad)}>✏️</button> <button onClick={(e) => {e.stopPropagation(); projeSil(p.id)}}>🗑️</button></div>
             </div>
           ))}
-          {projeler.length === 0 && <p style={{textAlign: 'center', color: '#999'}}>Henüz proje eklenmemiş.</p>}
         </div>
-        <div onClick={() => window.location.reload()} style={{marginTop: '25px', fontSize: '14px', color: '#e74c3c', cursor: 'pointer', fontWeight: 'bold', textDecoration: 'underline'}}>🔒 Güvenli Çıkış Yap</div>
-        <div style={{ marginTop: '15px' }}><span onClick={() => setShowPassChange(!showPassChange)} style={{ cursor: 'pointer', fontSize: '13px', color: '#3498db', textDecoration: 'underline' }}>⚙️ Şifre Değiştir (İçeriden)</span></div>
-        {showPassChange && (
-            <div style={{ marginTop: '15px', background: 'white', padding: '15px', borderRadius: '10px', border: '1px solid #ddd', width: '300px' }}>
-                <input type="password" placeholder="Mevcut Şifre" style={{...inp, marginBottom: '8px'}} onChange={e => setPassData({...passData, oldP: e.target.value})} />
-                <input type="password" placeholder="Yeni Şifre" style={{...inp, marginBottom: '12px'}} onChange={e => setPassData({...passData, newP: e.target.value})} />
-                <button onClick={sifreDegistir} style={{...btn, width: '100%', background: '#2980b9'}}>Şifreyi Güncelle</button>
-            </div>
-        )}
+        <button onClick={() => window.location.reload()} style={{marginTop: '20px', color: 'red'}}>Çıkış Yap</button>
       </div>
     );
   }
 
-  // --- ANA DASHBOARD ---
   return (
-    <div style={{ fontFamily: 'Segoe UI, sans-serif', padding: '20px', backgroundColor: '#f0f2f5', minHeight: '100vh' }}>
-      <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '20px', alignItems: 'center'}}>
-        <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}>
-          <button onClick={() => { setSeciliProjeId(null); setSeciliFirmaId(null); }} style={{...btn, background: '#34495e', padding: '5px 15px'}}>⬅ Projeler</button>
-          <h2 style={{color: '#1a3353', margin: 0}}>{suankiProje.ad.toUpperCase()}</h2>
-        </div>
-        <div style={{fontSize: '14px'}}><b>{user.username}</b> | <span style={{cursor: 'pointer', color: 'red'}} onClick={() => window.location.reload()}>Çıkış</span></div>
+    <div style={{padding: '20px', background: '#f0f2f5', minHeight: '100vh'}}>
+      <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '20px'}}>
+        <button style={btn} onClick={() => {setSeciliProjeId(null); setSeciliFirmaId(null)}}>⬅ Geri</button>
+        <h3>{suankiProje.ad.toUpperCase()}</h3>
+        <span>{user.username}</span>
       </div>
-      <div style={{ display: 'flex', gap: '15px', marginBottom: '25px' }}>
-        <div style={kart('#3498db')}>Genel Maliyet: {genelMaliyet.toLocaleString()} TL</div>
-        <div style={kart('#2ecc71')}>Toplam Ödenen: {genelOdenen.toLocaleString()} TL</div>
-        <div style={{ ...kart('#e74c3c'), color: '#e74c3c' }}>Net Borç: {genelBorc.toLocaleString()} TL</div>
-      </div>
-      <div style={{ display: 'flex', gap: '20px' }}>
-        <div style={{ width: '320px', background: 'white', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)', alignSelf: 'flex-start' }}>
+
+      <div style={{display: 'flex', gap: '20px'}}>
+        <div style={{width: '300px', background: 'white', padding: '15px', borderRadius: '10px'}}>
           <h4>Firmalar</h4>
-          <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="🔍 Firma Ara..." style={{...inp, marginBottom: '10px'}} />
-          <div style={{display: 'flex', gap: '5px', marginBottom: '15px'}}>
-            <input value={yeniFirmaAdi} onChange={e => setYeniFirmaAdi(e.target.value)} placeholder="Firma Ekle..." style={inp} />
-            <button onClick={firmaEkle} style={btn}>+</button>
+          <input style={{...inp, marginBottom: '10px'}} placeholder="Ara..." onChange={e => setSearchTerm(e.target.value)} />
+          <div style={{display: 'flex', gap: '5px', marginBottom: '10px'}}>
+            <input style={inp} value={yeniFirmaAdi} onChange={e => setYeniFirmaAdi(e.target.value)} placeholder="Firma..." />
+            <button style={btn} onClick={firmaEkle}>+</button>
           </div>
-          <div style={{maxHeight: '450px', overflowY: 'auto'}}>
-            {firmalar.filter(f => f.ad.toLowerCase().includes(searchTerm.toLowerCase())).map(f => (
-              <div key={f.id} onClick={() => setSeciliFirmaId(f.id)} style={{ padding: '12px', cursor: 'pointer', background: seciliFirmaId === f.id ? '#1a3353' : '#f8f9fa', color: seciliFirmaId === f.id ? 'white' : 'black', margin: '8px 0', borderRadius: '8px', border: '1px solid #ddd' }}>
-                <strong>{f.ad}</strong>
-              </div>
-            ))}
-          </div>
+          {firmalar.filter(f => f.ad.toLowerCase().includes(searchTerm.toLowerCase())).map(f => (
+            <div key={f.id} onClick={() => setSeciliFirmaId(f.id)} style={{padding: '10px', background: seciliFirmaId === f.id ? '#1a3353' : '#f9f9f9', color: seciliFirmaId === f.id ? 'white' : 'black', cursor: 'pointer', marginBottom: '5px', borderRadius: '5px', display: 'flex', justifyContent: 'space-between'}}>
+              {f.ad}
+              {/* FİRMA DÜZENLEME BUTONU */}
+              <button onClick={(e) => { e.stopPropagation(); firmaAdiniDuzenle(f.id, f.ad); }} style={{background: 'none', border: 'none', cursor: 'pointer'}}>✏️</button>
+            </div>
+          ))}
         </div>
-        <div style={{ flex: 1, background: 'white', padding: '25px', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)' }}>
+
+        <div style={{flex: 1, background: 'white', padding: '20px', borderRadius: '10px'}}>
           {seciliFirma ? (
             <>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
-                  <h3 style={{ margin: 0 }}>{seciliFirma.ad} Analizi</h3>
-                  <button onClick={pdfUret} style={{ ...btn, background: '#e67e22', padding: '5px 12px', fontSize: '12px' }}>📄 PDF Raporu İndir</button>
-                  <button onClick={() => firmaSil(seciliFirma.id)} style={{ background: 'none', border: 'none', color: '#e74c3c', fontSize: '11px', cursor: 'pointer', textDecoration: 'underline' }}>⚠️ Bu Firmayı Tamamen Sil</button>
-                </div>
-                <div style={{display: 'flex', gap: '10px'}}>
-                   <div style={kucukOzet('#3498db')}>Maliyet: {fMaliyet.toLocaleString()} TL</div>
-                   <div style={kucukOzet('#2ecc71')}>Ödenen: {fOdenen.toLocaleString()} TL</div>
-                   <div style={kucukOzet('#e74c3c')}>Borç: {fBorc.toLocaleString()} TL</div>
-                </div>
+              <div style={{display: 'flex', justifyContent: 'space-between'}}>
+                <h3>{seciliFirma.ad} Detayları</h3>
+                <button style={{...btn, background: 'orange'}} onClick={pdfUret}>PDF İndir</button>
               </div>
-              <div style={{marginBottom: '20px'}}>
-                <label style={{fontSize: '13px', color: '#666', fontWeight: 'bold'}}>Firma Notları / Açıklama:</label>
-                <textarea value={seciliFirma.not} onChange={(e) => notGuncelle(e.target.value)} style={{...inp, height: '80px', marginTop: '5px'}} placeholder="Firmaya dair özel notlar..." />
+              <textarea style={{...inp, height: '60px', marginTop: '10px'}} value={seciliFirma.not} onChange={e => notGuncelle(e.target.value)} placeholder="Notlar..." />
+              <div style={{marginTop: '15px', display: 'flex', gap: '10px'}}>
+                <input style={inp} placeholder="Hizmet" onChange={e => setYeniKalem({...yeniKalem, cins: e.target.value})} />
+                <input style={inp} placeholder="Tutar" type="number" onChange={e => setYeniKalem({...yeniKalem, tutar: e.target.value})} />
+                <button style={btn} onClick={kalemEkle}>Ekle</button>
               </div>
-              <div style={{ background: '#f8f9fa', padding: '15px', borderRadius: '10px', marginBottom: '20px' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: '10px' }}>
-                  <input placeholder="Malzeme/Hizmet" value={yeniKalem.cins} onChange={e => setYeniKalem({ ...yeniKalem, cins: e.target.value })} style={inp} />
-                  <input placeholder="Miktar" value={yeniKalem.miktar} onChange={e => setYeniKalem({ ...yeniKalem, miktar: e.target.value })} style={inp} />
-                  <input placeholder="Tutar" type="number" value={yeniKalem.tutar} onChange={e => setYeniKalem({ ...yeniKalem, tutar: e.target.value })} style={inp} />
-                  <button onClick={kalemEkle} style={btn}>Ekle</button>
-                </div>
+              <div style={{marginTop: '15px', background: '#eafaf1', padding: '10px', borderRadius: '8px', display: 'flex', gap: '10px'}}>
+                <input style={inp} placeholder="Ödeme Miktarı" onChange={e => setOdemeTutari(e.target.value)} />
+                <button style={{...btn, background: 'green'}} onClick={odemeYap}>Ödeme Yap</button>
               </div>
-              <div style={{display: 'flex', gap: '10px', marginBottom: '20px', padding: '15px', backgroundColor: '#eafaf1', borderRadius: '10px', alignItems: 'center'}}>
-                  <strong style={{fontSize: '14px', color: '#27ae60'}}>Nakit/Çek Ödeme:</strong>
-                  <input placeholder="Miktar..." type="number" value={odemeTutari} onChange={e => setOdemeTutari(e.target.value)} style={{...inp, flex: 1}} />
-                  <input placeholder="Açıklama..." value={odemeAciklaması} onChange={e => setOdemeAciklaması(e.target.value)} style={{...inp, flex: 2}} />
-                  <button onClick={odemeYap} style={{ ...btn, background: '#2ecc71', width: '180px' }}>Öde</button>
-              </div>
-              <div style={{display: 'grid', gridTemplateColumns: '2fr 1.2fr', gap: '25px'}}>
-                <div>
-                  <h5 style={{margin: '0 0 10px 0'}}>Harcama Kalemleri</h5>
-                  <table width="100%" style={{fontSize: '14px', borderCollapse: 'collapse'}}>
-                    <thead><tr style={{textAlign: 'left', borderBottom: '2px solid #eee'}}><th>Hizmet</th><th>Miktar</th><th>Tutar</th></tr></thead>
-                    <tbody>{seciliFirma.kalemler.map(k => (<tr key={k.id} style={{borderBottom: '1px solid #f9f9f9'}}><td style={{padding: '10px 0'}}>{k.cins}</td><td>{k.miktar}</td><td>{k.tutar.toLocaleString()} TL</td></tr>))}</tbody>
-                  </table>
-                </div>
-                <div>
-                  <h5 style={{margin: '0 0 10px 0'}}>Tahsilat/Ödeme Geçmişi</h5>
-                  {seciliFirma.odemeGecmisi.map(o => (<div key={o.id} style={{fontSize: '12px', background: '#eafaf1', padding: '10px', borderRadius: '5px', marginBottom: '8px', borderLeft: '3px solid #2ecc71', display: 'flex', justifyContent: 'space-between'}}>
-                    <span><strong>{o.miktar.toLocaleString()} TL</strong> - {o.tarih}</span>
-                    <span style={{fontSize: '10px', color: '#666'}}>{o.aciklama}</span>
-                  </div>))}
-                </div>
-              </div>
+              <table width="100%" style={{marginTop: '20px', textAlign: 'left'}}>
+                <thead><tr><th>Hizmet</th><th>Tutar</th></tr></thead>
+                <tbody>{seciliFirma.kalemler.map(k => (<tr key={k.id}><td>{k.cins}</td><td>{k.tutar.toLocaleString()} TL</td></tr>))}</tbody>
+              </table>
             </>
-          ) : <div style={{textAlign: 'center', marginTop: '100px', color: '#999'}}>Sol listeden bir firma seçin.</div>}
+          ) : "Bir firma seçin."}
         </div>
       </div>
     </div>
   );
 }
 
-// STİLLER
 const authContainer = { display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: '#f0f2f5' };
-const authBox = { background: 'white', padding: '40px', borderRadius: '15px', boxShadow: '0 10px 30px rgba(0,0,0,0.1)', textAlign: 'center', width: '350px' };
-const kart = (renk) => ({ flex: 1, background: 'white', padding: '20px', borderRadius: '12px', fontWeight: 'bold', boxShadow: '0 4px 6px rgba(0,0,0,0.05)', borderBottom: `5px solid ${renk}` });
-const kucukOzet = (renk) => ({ fontSize: '11px', background: renk, padding: '5px 10px', borderRadius: '6px', color: 'white', fontWeight: 'bold' });
-const inp = { padding: '10px', borderRadius: '6px', border: '1px solid #ddd', outline: 'none', width: '100%', boxSizing: 'border-box' };
-const btn = { padding: '10px 15px', background: '#1a3353', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' };
+const authBox = { background: 'white', padding: '30px', borderRadius: '12px', textAlign: 'center', width: '320px', boxShadow: '0 10px 25px rgba(0,0,0,0.1)' };
+const inp = { padding: '8px', borderRadius: '5px', border: '1px solid #ddd', width: '100%', boxSizing: 'border-box' };
+const btn = { padding: '8px 12px', background: '#1a3353', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' };
