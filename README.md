@@ -10,7 +10,7 @@ Sisteme güvenli erişim sağlayan giriş paneli.
 
 ### 2. T.C. ile Şifre Sıfırlama
 E-posta karmaşası olmadan, T.C. kimlik numarasının ilk 4 hanesiyle hızlı ve güvenli şifre yenileme.
-![Şifre Değiştir](images/noa_asifredegestir.png)
+![Şifre Değiştir](images/degistirme_noa.png)
 
 ### 3. Proje Yönetimi
 Tüm aktif projelerin listelendiği ve yeni projelerin oluşturulduğu ana merkez.
