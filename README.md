@@ -1,6 +1,6 @@
 # NOA Yazılım - Proje Takip Sistemi
 
-Baban için özel olarak geliştirilmiş, projelerin ve firma ödemelerinin takip edildiği yönetim paneli.
+İDEM Mühendislik için özel olarak geliştirilmiş, projelerin ve firma ödemelerinin takip edildiği yönetim paneli.
 
 ## 📸 Uygulama Ekran Görüntüleri
 
