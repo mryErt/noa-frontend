@@ -10,7 +10,7 @@ export default function App() {
     username: '', 
     password: '',
     email: '',
-    tcIlk4: '' // Kayıt için yeni alan
+    tcIlk4: '' 
   });
 
   // --- PROJE STATE'LERİ ---
@@ -72,7 +72,6 @@ export default function App() {
         setIsLogin(true);
       }
     } catch (err) {
-      // Backend'den gelen spesifik hata mesajını gösterir
       alert(err.response?.data?.error || "Bir hata oluştu!");
     }
   };
@@ -113,6 +112,40 @@ export default function App() {
     if (yeniAd && yeniAd.trim() !== "" && yeniAd !== eskiAd) {
       const yeniListe = firmalar.map(f => f.id === id ? { ...f, ad: yeniAd } : f);
       projeleriGuncelleVeKaydet(yeniListe);
+    }
+  };
+
+  // --- HARCAMA KALEMİ DÜZENLEME (YENİ) ---
+  const kalemDuzenle = (kalemId, eskiCins, eskiMiktar, eskiTutar) => {
+    const yeniCins = prompt("Yeni Malzeme/Hizmet adı:", eskiCins);
+    if (yeniCins === null) return;
+    const yeniMiktar = prompt("Yeni miktar:", eskiMiktar);
+    if (yeniMiktar === null) return;
+    const yeniTutar = prompt("Yeni tutar (TL):", eskiTutar);
+    if (yeniTutar === null) return;
+
+    const guncelFirmalar = firmalar.map(f => {
+      if (f.id === seciliFirmaId) {
+        const guncelKalemler = f.kalemler.map(k => 
+          k.id === kalemId ? { ...k, cins: yeniCins, miktar: yeniMiktar, tutar: Number(yeniTutar) } : k
+        );
+        return { ...f, kalemler: guncelKalemler };
+      }
+      return f;
+    });
+    projeleriGuncelleVeKaydet(guncelFirmalar);
+  };
+
+  // --- HARCAMA KALEMİ SİLME (YENİ) ---
+  const kalemSil = (kalemId) => {
+    if (window.confirm("Bu harcama kalemini silmek istediğinize emin misiniz?")) {
+      const guncelFirmalar = firmalar.map(f => {
+        if (f.id === seciliFirmaId) {
+          return { ...f, kalemler: f.kalemler.filter(k => k.id !== kalemId) };
+        }
+        return f;
+      });
+      projeleriGuncelleVeKaydet(guncelFirmalar);
     }
   };
 
@@ -284,8 +317,6 @@ export default function App() {
           <form onSubmit={handleAuth}>
             <input style={inp} placeholder="Kullanıcı Adı" value={authData.username} onChange={e => setAuthData({...authData, username: e.target.value})} />
             <input style={{...inp, marginTop: '10px'}} type="password" placeholder="Şifre" value={authData.password} onChange={e => setAuthData({...authData, password: e.target.value})} />
-            
-            {/* KAYIT OLURKEN TC İLK 4 HANE İSTİYORUZ */}
             {!isLogin && (
               <input 
                 style={{...inp, marginTop: '10px', border: '1px solid #e67e22'}} 
@@ -295,31 +326,21 @@ export default function App() {
                 maxLength={4}
               />
             )}
-            
             <button type="submit" style={{...btn, width: '100%', marginTop: '15px'}}>{isLogin ? 'Giriş Yap' : 'Kayıt Ol'}</button>
           </form>
-          
           <p style={{cursor: 'pointer', fontSize: '14px', marginTop: '15px'}} onClick={() => setIsLogin(!isLogin)}>
             {isLogin ? 'Hesabınız yok mu? Üye olun' : 'Zaten üyeyim? Giriş yapın'}
           </p>
-
           <p onClick={() => setShowReset(!showReset)} style={{cursor: 'pointer', fontSize: '13px', color: '#e67e22', marginTop: '10px', textDecoration: 'underline'}}>
             Şifremi Unuttum (T.C. ile Sıfırla)
           </p>
-
           {showReset && (
             <div style={{marginTop: '20px', padding: '15px', border: '1px solid #ddd', borderRadius: '10px', backgroundColor: '#fff9f4'}}>
-              <h4 style={{margin: '0 0 10px 0', fontSize: '14px'}}>T.C. Bilgisi ile Şifre Sıfırla</h4>
+              <h4 style={{margin: '0 0 10px 0', fontSize: '14px'}}>T.C. Bilgisi ile Şifre Sıfirlа</h4>
               <input style={inp} placeholder="Kullanıcı Adınız" value={resetData.username} onChange={e => setResetData({...resetData, username: e.target.value})} />
               <input style={{...inp, marginTop: '8px'}} placeholder="T.C. Kimlik İlk 4 Hanesi" value={resetData.tcIlk4} onChange={e => setResetData({...resetData, tcIlk4: e.target.value})} maxLength={4} />
               <input style={{...inp, marginTop: '8px'}} type="password" placeholder="Yeni Şifre" value={resetData.newP} onChange={e => setResetData({...resetData, newP: e.target.value})} />
-              <button 
-                type="button" 
-                style={{...btn, width: '100%', marginTop: '10px', background: '#2ecc71'}} 
-                onClick={sifreSifirlaTC}
-              >
-                Şifreyi Sıfırla
-              </button>
+              <button type="button" style={{...btn, width: '100%', marginTop: '10px', background: '#2ecc71'}} onClick={sifreSifirlaTC}>Şifreyi Sıfırla</button>
               <button onClick={() => setShowReset(false)} style={{background: 'none', border: 'none', fontSize: '12px', marginTop: '10px', cursor: 'pointer', color: '#666', width: '100%'}}>İptal</button>
             </div>
           )}
@@ -328,7 +349,6 @@ export default function App() {
     );
   }
 
-  // --- PROJE SEÇİM EKRANI ---
   if (!seciliProjeId) {
     return (
       <div style={{ padding: '40px', backgroundColor: '#f0f2f5', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -347,7 +367,6 @@ export default function App() {
               </div>
             </div>
           ))}
-          {projeler.length === 0 && <p style={{textAlign: 'center', color: '#999'}}>Henüz proje eklenmemiş.</p>}
         </div>
         <div onClick={() => window.location.reload()} style={{marginTop: '25px', fontSize: '14px', color: '#e74c3c', cursor: 'pointer', fontWeight: 'bold', textDecoration: 'underline'}}>🔒 Güvenli Çıkış Yap</div>
         <div style={{ marginTop: '15px' }}><span onClick={() => setShowPassChange(!showPassChange)} style={{ cursor: 'pointer', fontSize: '13px', color: '#3498db', textDecoration: 'underline' }}>⚙️ Şifre Değiştir (İçeriden)</span></div>
@@ -362,7 +381,6 @@ export default function App() {
     );
   }
 
-  // --- ANA DASHBOARD ---
   return (
     <div style={{ fontFamily: 'Segoe UI, sans-serif', padding: '20px', backgroundColor: '#f0f2f5', minHeight: '100vh' }}>
       <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '20px', alignItems: 'center'}}>
@@ -431,8 +449,20 @@ export default function App() {
                 <div>
                   <h5 style={{margin: '0 0 10px 0'}}>Harcama Kalemleri</h5>
                   <table width="100%" style={{fontSize: '14px', borderCollapse: 'collapse'}}>
-                    <thead><tr style={{textAlign: 'left', borderBottom: '2px solid #eee'}}><th>Hizmet</th><th>Miktar</th><th>Tutar</th></tr></thead>
-                    <tbody>{seciliFirma.kalemler.map(k => (<tr key={k.id} style={{borderBottom: '1px solid #f9f9f9'}}><td style={{padding: '10px 0'}}>{k.cins}</td><td>{k.miktar}</td><td>{k.tutar.toLocaleString()} TL</td></tr>))}</tbody>
+                    <thead><tr style={{textAlign: 'left', borderBottom: '2px solid #eee'}}><th>Hizmet</th><th>Miktar</th><th>Tutar</th><th style={{textAlign:'right'}}>İşlem</th></tr></thead>
+                    <tbody>
+                      {seciliFirma.kalemler.map(k => (
+                        <tr key={k.id} style={{borderBottom: '1px solid #f9f9f9'}}>
+                          <td style={{padding: '10px 0'}}>{k.cins}</td>
+                          <td>{k.miktar}</td>
+                          <td>{k.tutar.toLocaleString()} TL</td>
+                          <td style={{textAlign: 'right'}}>
+                            <button onClick={() => kalemDuzenle(k.id, k.cins, k.miktar, k.tutar)} style={{background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', marginRight: '5px'}}>✏️</button>
+                            <button onClick={() => kalemSil(k.id)} style={{background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', color: 'red'}}>🗑️</button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
                   </table>
                 </div>
                 <div>
@@ -459,7 +489,6 @@ export default function App() {
   );
 }
 
-// STİLLER
 const authContainer = { display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: '#f0f2f5' };
 const authBox = { background: 'white', padding: '40px', borderRadius: '15px', boxShadow: '0 10px 30px rgba(0,0,0,0.1)', textAlign: 'center', width: '350px' };
 const kart = (renk) => ({ flex: 1, background: 'white', padding: '20px', borderRadius: '12px', fontWeight: 'bold', boxShadow: '0 4px 6px rgba(0,0,0,0.05)', borderBottom: `5px solid ${renk}` });
