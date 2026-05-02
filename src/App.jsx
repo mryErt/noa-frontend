@@ -9,7 +9,8 @@ export default function App() {
   const [authData, setAuthData] = useState({ 
     username: '', 
     password: '',
-    email: ''
+    email: '',
+    tcIlk4: '' // Kayıt için yeni alan
   });
 
   // --- PROJE STATE'LERİ ---
@@ -17,10 +18,9 @@ export default function App() {
   const [seciliProjeId, setSeciliProjeId] = useState(null); 
   const [yeniProjeAdi, setYeniProjeAdi] = useState('');
 
-  // --- E-POSTA / OTP ŞİFRE SIFIRLAMA STATE'LERİ ---
-  const [showOTP, setShowOTP] = useState(false);
-  const [otpStep, setOtpStep] = useState(1); 
-  const [resetData, setResetData] = useState({ email: '', code: '', newP: '' });
+  // --- ŞİFRE SIFIRLAMA (TC İLE) STATE'LERİ ---
+  const [showReset, setShowReset] = useState(false);
+  const [resetData, setResetData] = useState({ username: '', tcIlk4: '', newP: '' });
 
   // --- ŞİFRE DEĞİŞTİRME STATE'LERİ ---
   const [passData, setPassData] = useState({ oldP: '', newP: '' });
@@ -60,7 +60,7 @@ export default function App() {
         setUser(userData);
         setProjeler(userData.projeler || []);
       } else {
-        alert("Kayıt başarılı! Giriş yapabilirsiniz.");
+        alert("Kayıt başarılı! Şimdi T.C. bilginizle giriş yapabilirsiniz.");
         setIsLogin(true);
       }
     } catch (err) {
@@ -68,14 +68,31 @@ export default function App() {
     }
   };
 
-  // --- İSİM DÜZENLEME FONKSİYONLARI ---
+  // --- T.C. İLE ŞİFRE SIFIRLAMA FONKSİYONU ---
+  const sifreSifirlaTC = async () => {
+    if (!resetData.username || !resetData.tcIlk4 || !resetData.newP) {
+      return alert("Lütfen tüm alanları doldurun!");
+    }
+    try {
+      const res = await axios.post(`${API_BASE_URL}/verify-tc-and-change`, { 
+        username: resetData.username, 
+        tcIlk4: resetData.tcIlk4, 
+        newPassword: resetData.newP 
+      });
+      alert(res.data.message);
+      setShowReset(false);
+      setResetData({ username: '', tcIlk4: '', newP: '' });
+    } catch (err) {
+      alert(err.response?.data?.error || "Sıfırlama başarısız!");
+    }
+  };
+
+  // --- DİĞER DÜZENLEME FONKSİYONLARI ---
   const projeAdiniDuzenle = (e, id, eskiAd) => {
     e.stopPropagation();
     const yeniAd = prompt("Proje adını düzenleyin:", eskiAd);
     if (yeniAd && yeniAd.trim() !== "" && yeniAd !== eskiAd) {
-      const guncelListe = projeler.map(p => 
-        p.id === id ? { ...p, ad: yeniAd } : p
-      );
+      const guncelListe = projeler.map(p => p.id === id ? { ...p, ad: yeniAd } : p);
       setProjeler(guncelListe);
       verileriKaydet(guncelListe);
     }
@@ -90,13 +107,11 @@ export default function App() {
     }
   };
 
-  // --- ÖDEME DÜZENLEME (YENİ ÖZELLİK) ---
   const odemeDuzenle = (odemeId, eskiMiktar, eskiAciklama) => {
     const yeniMiktar = prompt("Yeni ödeme miktarını girin:", eskiMiktar);
-    if (yeniMiktar === null) return; // İptal edildiyse dur
-    
-    const yeniAciklama = prompt("Yeni açıklamayı girin (veya ekleyin):", eskiAciklama || "");
-    if (yeniAciklama === null) return; // İptal edildiyse dur
+    if (yeniMiktar === null) return;
+    const yeniAciklama = prompt("Yeni açıklamayı girin:", eskiAciklama || "");
+    if (yeniAciklama === null) return;
 
     const guncelFirmalar = firmalar.map(f => {
       if (f.id === seciliFirmaId) {
@@ -119,40 +134,6 @@ export default function App() {
         return f;
       });
       projeleriGuncelleVeKaydet(guncelFirmalar);
-    }
-  };
-
-  // --- OTP İŞLEMLERİ ---
-  const otpGonder = async () => {
-    if (!authData.username || !resetData.email) {
-      return alert("Lütfen yukarıya Kullanıcı Adınızı, aşağıya kayıtlı E-posta adresinizi girin!");
-    }
-    try {
-      const res = await axios.post(`${API_BASE_URL}/send-otp`, { 
-        username: authData.username, 
-        email: resetData.email 
-      });
-      alert(res.data.message);
-      setOtpStep(2);
-    } catch (err) {
-      alert(err.response?.data?.error || "Kod gönderilemedi!");
-    }
-  };
-
-  const sifreOnayla = async () => {
-    if (!resetData.code || !resetData.newP) return alert("Kod ve yeni şifre gerekli!");
-    try {
-      const res = await axios.post(`${API_BASE_URL}/verify-otp-and-change`, { 
-        username: authData.username, 
-        otp: resetData.code, 
-        newPassword: resetData.newP 
-      });
-      alert(res.data.message);
-      setShowOTP(false);
-      setOtpStep(1);
-      setResetData({ email: '', code: '', newP: '' });
-    } catch (err) {
-      alert(err.response?.data?.error || "Şifre güncellenemedi!");
     }
   };
 
@@ -195,7 +176,7 @@ export default function App() {
   };
 
   const projeSil = (id) => {
-    if (window.confirm("Bu projeyi ve içindeki TÜM verileri silmek istediğinize emin misiniz?")) {
+    if (window.confirm("Bu projeyi silmek istediğinize emin misiniz?")) {
       const liste = projeler.filter(p => p.id !== id);
       setProjeler(liste);
       verileriKaydet(liste);
@@ -220,7 +201,7 @@ export default function App() {
   };
 
   const firmaSil = (id) => {
-    if (window.confirm("Bu firmayı silmek istediğinize emin misiniz?")) {
+    if (window.confirm("Firma silinsin mi?")) {
       const liste = firmalar.filter(f => f.id !== id);
       projeleriGuncelleVeKaydet(liste);
       setSeciliFirmaId(null);
@@ -285,7 +266,7 @@ export default function App() {
     } catch (e) { alert("PDF Hatası!"); }
   };
 
-  // --- GİRİŞ EKRANI ---
+  // --- GİRİŞ / KAYIT EKRANI ---
   if (!user) {
     return (
       <div style={authContainer}>
@@ -294,27 +275,43 @@ export default function App() {
           <form onSubmit={handleAuth}>
             <input style={inp} placeholder="Kullanıcı Adı" value={authData.username} onChange={e => setAuthData({...authData, username: e.target.value})} />
             <input style={{...inp, marginTop: '10px'}} type="password" placeholder="Şifre" value={authData.password} onChange={e => setAuthData({...authData, password: e.target.value})} />
+            
+            {/* KAYIT OLURKEN TC İLK 4 HANE İSTİYORUZ */}
+            {!isLogin && (
+              <input 
+                style={{...inp, marginTop: '10px', border: '1px solid #e67e22'}} 
+                placeholder="T.C. Kimlik İlk 4 Hanesi (Şifre kurtarma için)" 
+                value={authData.tcIlk4} 
+                onChange={e => setAuthData({...authData, tcIlk4: e.target.value})} 
+                maxLength={4}
+              />
+            )}
+            
             <button type="submit" style={{...btn, width: '100%', marginTop: '15px'}}>{isLogin ? 'Giriş Yap' : 'Kayıt Ol'}</button>
           </form>
-          <p style={{cursor: 'pointer', fontSize: '14px', marginTop: '15px'}} onClick={() => setIsLogin(!isLogin)}>{isLogin ? 'Hesabınız yok mu? Üye olun' : 'Zaten üyeyim? Giriş yapın'}</p>
-          <p onClick={() => setShowOTP(!showOTP)} style={{cursor: 'pointer', fontSize: '13px', color: '#e67e22', marginTop: '10px', textDecoration: 'underline'}}>Şifremi Unuttum / Değiştir</p>
-          {showOTP && (
+          
+          <p style={{cursor: 'pointer', fontSize: '14px', marginTop: '15px'}} onClick={() => setIsLogin(!isLogin)}>
+            {isLogin ? 'Hesabınız yok mu? Üye olun' : 'Zaten üyeyim? Giriş yapın'}
+          </p>
+
+          <p onClick={() => setShowReset(!showReset)} style={{cursor: 'pointer', fontSize: '13px', color: '#e67e22', marginTop: '10px', textDecoration: 'underline'}}>
+            Şifremi Unuttum (T.C. ile Sıfırla)
+          </p>
+
+          {showReset && (
             <div style={{marginTop: '20px', padding: '15px', border: '1px solid #ddd', borderRadius: '10px', backgroundColor: '#fff9f4'}}>
-              {otpStep === 1 ? (
-                <div style={{textAlign: 'left'}}>
-                  <h4 style={{margin: '0 0 10px 0', fontSize: '14px'}}>E-posta ile Kod Gönder</h4>
-                  <input style={inp} placeholder="Kayıtlı E-posta Adresiniz" value={resetData.email} onChange={e => setResetData({...resetData, email: e.target.value})} />
-                  <button type="button" style={{...btn, width: '100%', marginTop: '10px', background: '#e67e22'}} onClick={() => otpGonder()}>Kod Gönder</button>
-                </div>
-              ) : (
-                <div style={{textAlign: 'left'}}>
-                  <h4 style={{margin: '0 0 10px 0', fontSize: '14px'}}>Kodu Doğrula</h4>
-                  <input style={inp} placeholder="6 Haneli Kod" value={resetData.code} onChange={e => setResetData({...resetData, code: e.target.value})} />
-                  <input style={{...inp, marginTop: '8px'}} type="password" placeholder="Yeni Şifre" value={resetData.newP} onChange={e => setResetData({...resetData, newP: e.target.value})} />
-                  <button type="button" style={{...btn, width: '100%', marginTop: '10px', background: '#2ecc71'}} onClick={() => sifreOnayla()}>Şifreyi Güncelle</button>
-                </div>
-              )}
-              <button type="button" onClick={() => {setShowOTP(false); setOtpStep(1);}} style={{background: 'none', border: 'none', fontSize: '12px', marginTop: '10px', cursor: 'pointer', color: '#666', width: '100%'}}>İptal</button>
+              <h4 style={{margin: '0 0 10px 0', fontSize: '14px'}}>T.C. Bilgisi ile Şifre Sıfırla</h4>
+              <input style={inp} placeholder="Kullanıcı Adınız" value={resetData.username} onChange={e => setResetData({...resetData, username: e.target.value})} />
+              <input style={{...inp, marginTop: '8px'}} placeholder="T.C. Kimlik İlk 4 Hanesi" value={resetData.tcIlk4} onChange={e => setResetData({...resetData, tcIlk4: e.target.value})} maxLength={4} />
+              <input style={{...inp, marginTop: '8px'}} type="password" placeholder="Yeni Şifre" value={resetData.newP} onChange={e => setResetData({...resetData, newP: e.target.value})} />
+              <button 
+                type="button" 
+                style={{...btn, width: '100%', marginTop: '10px', background: '#2ecc71'}} 
+                onClick={sifreSifirlaTC}
+              >
+                Şifreyi Sıfırla
+              </button>
+              <button onClick={() => setShowReset(false)} style={{background: 'none', border: 'none', fontSize: '12px', marginTop: '10px', cursor: 'pointer', color: '#666', width: '100%'}}>İptal</button>
             </div>
           )}
         </div>
