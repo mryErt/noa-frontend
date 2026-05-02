@@ -6,7 +6,11 @@ import autoTable from 'jspdf-autotable';
 export default function App() {
   const [user, setUser] = useState(null);
   const [isLogin, setIsLogin] = useState(true);
-  const [authData, setAuthData] = useState({ username: '', password: '' });
+const [authData, setAuthData] = useState({ 
+  username: '', 
+  password: '',
+  email: ''
+});
 
   // --- PROJE STATE'LERİ ---
   const [projeler, setProjeler] = useState([]); 
