@@ -82,11 +82,43 @@ export default function App() {
   };
 
   const firmaAdiniDuzenle = (e, id, eskiAd) => {
-    e.stopPropagation(); // Firma seçimini engellemek için
+    e.stopPropagation();
     const yeniAd = prompt("Firma adını düzenleyin:", eskiAd);
     if (yeniAd && yeniAd.trim() !== "" && yeniAd !== eskiAd) {
       const yeniListe = firmalar.map(f => f.id === id ? { ...f, ad: yeniAd } : f);
       projeleriGuncelleVeKaydet(yeniListe);
+    }
+  };
+
+  // --- ÖDEME DÜZENLEME (YENİ ÖZELLİK) ---
+  const odemeDuzenle = (odemeId, eskiMiktar, eskiAciklama) => {
+    const yeniMiktar = prompt("Yeni ödeme miktarını girin:", eskiMiktar);
+    if (yeniMiktar === null) return; // İptal edildiyse dur
+    
+    const yeniAciklama = prompt("Yeni açıklamayı girin (veya ekleyin):", eskiAciklama || "");
+    if (yeniAciklama === null) return; // İptal edildiyse dur
+
+    const guncelFirmalar = firmalar.map(f => {
+      if (f.id === seciliFirmaId) {
+        const guncelOdemeler = f.odemeGecmisi.map(o => 
+          o.id === odemeId ? { ...o, miktar: Number(yeniMiktar), aciklama: yeniAciklama } : o
+        );
+        return { ...f, odemeGecmisi: guncelOdemeler };
+      }
+      return f;
+    });
+    projeleriGuncelleVeKaydet(guncelFirmalar);
+  };
+
+  const odemeSil = (odemeId) => {
+    if (window.confirm("Bu ödeme kaydını silmek istediğinize emin misiniz?")) {
+      const guncelFirmalar = firmalar.map(f => {
+        if (f.id === seciliFirmaId) {
+          return { ...f, odemeGecmisi: f.odemeGecmisi.filter(o => o.id !== odemeId) };
+        }
+        return f;
+      });
+      projeleriGuncelleVeKaydet(guncelFirmalar);
     }
   };
 
@@ -351,7 +383,6 @@ export default function App() {
             {firmalar.filter(f => f.ad.toLowerCase().includes(searchTerm.toLowerCase())).map(f => (
               <div key={f.id} onClick={() => setSeciliFirmaId(f.id)} style={{ padding: '12px', cursor: 'pointer', background: seciliFirmaId === f.id ? '#1a3353' : '#f8f9fa', color: seciliFirmaId === f.id ? 'white' : 'black', margin: '8px 0', borderRadius: '8px', border: '1px solid #ddd', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <strong>{f.ad}</strong>
-                {/* FİRMA DÜZENLEME BUTONU */}
                 <button onClick={(e) => firmaAdiniDuzenle(e, f.id, f.ad)} style={{background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', color: seciliFirmaId === f.id ? 'white' : '#666'}}>✏️</button>
               </div>
             ))}
@@ -400,10 +431,18 @@ export default function App() {
                 </div>
                 <div>
                   <h5 style={{margin: '0 0 10px 0'}}>Tahsilat/Ödeme Geçmişi</h5>
-                  {seciliFirma.odemeGecmisi.map(o => (<div key={o.id} style={{fontSize: '12px', background: '#eafaf1', padding: '10px', borderRadius: '5px', marginBottom: '8px', borderLeft: '3px solid #2ecc71', display: 'flex', justifyContent: 'space-between'}}>
-                    <span><strong>{o.miktar.toLocaleString()} TL</strong> - {o.tarih}</span>
-                    <span style={{fontSize: '10px', color: '#666'}}>{o.aciklama}</span>
-                  </div>))}
+                  {seciliFirma.odemeGecmisi.map(o => (
+                    <div key={o.id} style={{fontSize: '12px', background: '#eafaf1', padding: '10px', borderRadius: '5px', marginBottom: '8px', borderLeft: '3px solid #2ecc71', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                      <div style={{display: 'flex', flexDirection: 'column', gap: '2px'}}>
+                        <span><strong>{o.miktar.toLocaleString()} TL</strong> - {o.tarih}</span>
+                        <span style={{fontSize: '10px', color: '#666'}}>{o.aciklama || "Açıklama yok"}</span>
+                      </div>
+                      <div style={{display: 'flex', gap: '8px'}}>
+                        <button onClick={() => odemeDuzenle(o.id, o.miktar, o.aciklama)} style={{background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px'}}>✏️</button>
+                        <button onClick={() => odemeSil(o.id)} style={{background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', color: 'red'}}>🗑️</button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             </>
@@ -414,7 +453,7 @@ export default function App() {
   );
 }
 
-// STİLLER (BUNLARADA HİÇ DOKUNMADIM)
+// STİLLER
 const authContainer = { display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: '#f0f2f5' };
 const authBox = { background: 'white', padding: '40px', borderRadius: '15px', boxShadow: '0 10px 30px rgba(0,0,0,0.1)', textAlign: 'center', width: '350px' };
 const kart = (renk) => ({ flex: 1, background: 'white', padding: '20px', borderRadius: '12px', fontWeight: 'bold', boxShadow: '0 4px 6px rgba(0,0,0,0.05)', borderBottom: `5px solid ${renk}` });
