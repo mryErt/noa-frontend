@@ -1,17 +1,17 @@
-# React + Vite
-<img width="1266" height="864" alt="Ekran görüntüsü 2026-04-30 131200" src="https://github.com/user-attachments/assets/0964e4df-047d-4288-a077-7e0b32ce3a0a" />
+# NOA Yazılım - Proje Takip Sistemi
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Baban için geliştirdiğin bu özel proje takip sisteminin detayları aşağıdadır.
 
-Currently, two official plugins are available:
+## 📸 Uygulama Ekran Görüntüleri
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+### Giriş ve Güvenlik
+Kullanıcı dostu giriş ekranı ve OTP destekli şifre sıfırlama sistemi.
+![Giriş Ekranı](./images/noa_giris_ekranı.png)
 
-## React Compiler
+### Proje Yönetimi
+Tüm projelerin listelendiği ve hızlıca yeni proje eklenebildiği ana ekran.
+![Projeler](./images/noa_projeler.png)
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+### Firma Analizi ve Ödeme Takibi
+Firmaların borç/alacak durumunun takibi, harcama kalemleri ve ödeme geçmişi düzenleme alanı.
+![İçerik Analizi](./images/noa_içerik.png)
