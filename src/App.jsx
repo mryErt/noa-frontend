@@ -54,29 +54,26 @@ export default function App() {
     if(e) e.preventDefault();
     const url = isLogin ? `${API_BASE_URL}/login` : `${API_BASE_URL}/register`;
     
-    // Gönderilecek veriyi hazırlıyoruz
     const payload = isLogin 
       ? { username: authData.username, password: authData.password } 
       : { 
           username: authData.username, 
           password: authData.password, 
-          email: authData.email, 
-          tcIlk4: authData.tcIlk4 // KRİTİK: Kayıt sırasında TC bilgisini ekledik
+          tcIlk4: authData.tcIlk4 
         };
 
     try {
-      const res = await axios.post(url, payload); // authData yerine hazırladığımız payload'u gönderiyoruz
+      const res = await axios.post(url, payload);
       if (isLogin) {
-        const userData = res.data.user;
-        setUser(userData);
-        setProjeler(userData.projeler || []);
+        setUser(res.data.user);
+        setProjeler(res.data.user.projeler || []);
       } else {
-        alert("Kayıt başarılı! Şimdi giriş yapabilirsiniz.");
+        alert("Kayıt başarılı! Giriş yapabilirsiniz.");
         setIsLogin(true);
       }
     } catch (err) {
-      // Hatayı daha net görmek için alert'i güncelledik
-      alert(err.response?.data?.error || "Sunucu hatası veya eksik bilgi!");
+      // Backend'den gelen spesifik hata mesajını gösterir
+      alert(err.response?.data?.error || "Bir hata oluştu!");
     }
   };
 
